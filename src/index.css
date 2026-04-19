@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light mode — cool off-white background, emerald primary */
+    --background: 220 20% 97%;
+    --foreground: 224 47% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 47% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 47% 9%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 93%;
+    --secondary-foreground: 224 47% 9%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 14% 93%;
+    --accent-foreground: 224 47% 9%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 87%;
+    --input: 220 13% 87%;
+    --ring: 160 84% 39%;
+    --radius: 0.75rem;
+    --sidebar-bg: 224 47% 9%;
+  }
+
+  .dark {
+    /* Dark mode — deep obsidian, elevated cards */
+    --background: 222 22% 7%;
+    --foreground: 213 27% 90%;
+    --card: 224 22% 11%;
+    --card-foreground: 213 27% 90%;
+    --popover: 224 22% 13%;
+    --popover-foreground: 213 27% 90%;
+    --primary: 160 84% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 224 22% 15%;
+    --secondary-foreground: 213 27% 90%;
+    --muted: 224 22% 15%;
+    --muted-foreground: 215 16% 57%;
+    --accent: 224 22% 15%;
+    --accent-foreground: 213 27% 90%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 224 22% 18%;
+    --input: 224 22% 18%;
+    --ring: 160 84% 45%;
+    --sidebar-bg: 224 22% 5%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+@layer utilities {
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .sr-only-focusable:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
+}

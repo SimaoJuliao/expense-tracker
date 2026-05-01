@@ -2,6 +2,8 @@ export { AppLayout } from './AppLayout';
 export { ConfirmDialog } from './ConfirmDialog';
 export { EmptyState } from './EmptyState';
 export { ExpenseForm } from './ExpenseForm';
+export { IncomeForm } from './IncomeForm';
 export { LoadingSpinner } from './LoadingSpinner';
+export { RecurringIncomeForm } from './RecurringIncomeForm';
 export { Modal } from './Modal';
 export { ProtectedRoute } from './ProtectedRoute';

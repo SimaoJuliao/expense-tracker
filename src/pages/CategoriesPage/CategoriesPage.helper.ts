@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useCategoryStore } from '../../store/useCategoryStore';
+import { useIncomeCategoryStore } from '../../store/useIncomeCategoryStore';
 import { useTranslation } from '../../i18n';
-import type { Category, NewCategory } from '../../types';
+import type { Category, IncomeCategory, NewCategory, NewIncomeCategory } from '../../types';
 
 export interface CategoryFormData {
   name: string;
@@ -15,13 +16,22 @@ export const PRESET_COLORS = [
   '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280',
 ];
 
+const emptyForm: CategoryFormData = { name: '', icon: '', color: '#3b82f6' };
+
 export const useCategoriesPage = () => {
-  const { categories, loading, fetchCategories, addCategory, updateCategory, deleteCategory, getExpenseCountForCategory } =
-    useCategoryStore();
+  const {
+    categories, loading: expLoading,
+    fetchCategories, addCategory, updateCategory, deleteCategory, getExpenseCountForCategory,
+  } = useCategoryStore();
+  const {
+    incomeCategories, loading: incLoading,
+    fetchIncomeCategories, addIncomeCategory, updateIncomeCategory, deleteIncomeCategory, getIncomeCountForCategory,
+  } = useIncomeCategoryStore();
   const { t } = useTranslation();
 
-  const emptyForm: CategoryFormData = { name: '', icon: '', color: '#3b82f6' };
+  const loading = expLoading || incLoading;
 
+  // ── Expense category state ───────────────────────────────────────────────────
   const [showAddModal,       setShowAddModal]       = useState(false);
   const [editCategory,       setEditCategory]       = useState<Category | null>(null);
   const [deleteId,           setDeleteId]           = useState<string | null>(null);
@@ -31,18 +41,30 @@ export const useCategoriesPage = () => {
   const [formData,           setFormData]           = useState<CategoryFormData>(emptyForm);
   const [formErrors,         setFormErrors]         = useState<Partial<Record<keyof CategoryFormData, string>>>({});
 
-  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+  // ── Income category state ────────────────────────────────────────────────────
+  const [showIncomeAddModal,    setShowIncomeAddModal]    = useState(false);
+  const [editIncomeCategory,    setEditIncomeCategory]    = useState<IncomeCategory | null>(null);
+  const [incomeDeleteId,        setIncomeDeleteId]        = useState<string | null>(null);
+  const [incomeDeleteCount,     setIncomeDeleteCount]     = useState(0);
+  const [incomeDeleting,        setIncomeDeleting]        = useState(false);
+  const [incomeSubmitting,      setIncomeSubmitting]      = useState(false);
+  const [incomeFormData,        setIncomeFormData]        = useState<CategoryFormData>(emptyForm);
+  const [incomeFormErrors,      setIncomeFormErrors]      = useState<Partial<Record<keyof CategoryFormData, string>>>({});
 
-  const validateForm = (): boolean => {
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+  useEffect(() => { fetchIncomeCategories(); }, [fetchIncomeCategories]);
+
+  // ── Expense category handlers ────────────────────────────────────────────────
+  const validateForm = (data: CategoryFormData, setErrors: React.Dispatch<React.SetStateAction<Partial<Record<keyof CategoryFormData, string>>>>): boolean => {
     const e: Partial<Record<keyof CategoryFormData, string>> = {};
-    if (!formData.name.trim()) e.name = t('categories.nameRequired');
-    setFormErrors(e);
+    if (!data.name.trim()) e.name = t('categories.nameRequired');
+    setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleAdd = async (ev: React.FormEvent) => {
     ev.preventDefault();
-    if (!validateForm()) return;
+    if (!validateForm(formData, setFormErrors)) return;
     setSubmitting(true);
     try {
       const cat: NewCategory = { name: formData.name.trim(), icon: formData.icon || null, color: formData.color || null };
@@ -56,7 +78,7 @@ export const useCategoriesPage = () => {
 
   const handleEdit = async (ev: React.FormEvent) => {
     ev.preventDefault();
-    if (!editCategory || !validateForm()) return;
+    if (!editCategory || !validateForm(formData, setFormErrors)) return;
     setSubmitting(true);
     try {
       await updateCategory(editCategory.id, { name: formData.name.trim(), icon: formData.icon || null, color: formData.color || null });
@@ -90,8 +112,62 @@ export const useCategoriesPage = () => {
 
   const openAdd = () => { setFormData(emptyForm); setFormErrors({}); setShowAddModal(true); };
 
+  // ── Income category handlers ─────────────────────────────────────────────────
+  const handleIncomeAdd = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!validateForm(incomeFormData, setIncomeFormErrors)) return;
+    setIncomeSubmitting(true);
+    try {
+      const cat: NewIncomeCategory = { name: incomeFormData.name.trim(), icon: incomeFormData.icon || null, color: incomeFormData.color || null };
+      await addIncomeCategory(cat);
+      toast.success(t('incomeCategories.addSuccess'));
+      setShowIncomeAddModal(false);
+      setIncomeFormData(emptyForm);
+    } catch { toast.error(t('incomeCategories.addFailed')); }
+    finally { setIncomeSubmitting(false); }
+  };
+
+  const handleIncomeEdit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!editIncomeCategory || !validateForm(incomeFormData, setIncomeFormErrors)) return;
+    setIncomeSubmitting(true);
+    try {
+      await updateIncomeCategory(editIncomeCategory.id, { name: incomeFormData.name.trim(), icon: incomeFormData.icon || null, color: incomeFormData.color || null });
+      toast.success(t('incomeCategories.updateSuccess'));
+      setEditIncomeCategory(null);
+    } catch { toast.error(t('incomeCategories.updateFailed')); }
+    finally { setIncomeSubmitting(false); }
+  };
+
+  const handleIncomeDeleteClick = async (id: string) => {
+    const count = await getIncomeCountForCategory(id);
+    setIncomeDeleteCount(count);
+    setIncomeDeleteId(id);
+  };
+
+  const handleIncomeDeleteConfirm = async () => {
+    if (!incomeDeleteId) return;
+    setIncomeDeleting(true);
+    try {
+      await deleteIncomeCategory(incomeDeleteId);
+      toast.success(t('incomeCategories.deleteSuccess'));
+    } catch { toast.error(t('incomeCategories.deleteFailed')); }
+    finally { setIncomeDeleting(false); setIncomeDeleteId(null); }
+  };
+
+  const openIncomeEdit = (cat: IncomeCategory) => {
+    setEditIncomeCategory(cat);
+    setIncomeFormData({ name: cat.name, icon: cat.icon ?? '', color: cat.color ?? '#10b981' });
+    setIncomeFormErrors({});
+  };
+
+  const openIncomeAdd = () => { setIncomeFormData({ ...emptyForm, color: '#10b981' }); setIncomeFormErrors({}); setShowIncomeAddModal(true); };
+
   return {
-    categories, loading,
+    // shared
+    loading, t,
+    // expense categories
+    categories,
     showAddModal, setShowAddModal,
     editCategory, setEditCategory,
     deleteId, setDeleteId,
@@ -102,6 +178,17 @@ export const useCategoriesPage = () => {
     handleAdd, handleEdit,
     handleDeleteClick, handleDeleteConfirm,
     openEdit, openAdd,
-    t,
+    // income categories
+    incomeCategories,
+    showIncomeAddModal, setShowIncomeAddModal,
+    editIncomeCategory, setEditIncomeCategory,
+    incomeDeleteId, setIncomeDeleteId,
+    incomeDeleteCount,
+    incomeDeleting, incomeSubmitting,
+    incomeFormData, setIncomeFormData,
+    incomeFormErrors,
+    handleIncomeAdd, handleIncomeEdit,
+    handleIncomeDeleteClick, handleIncomeDeleteConfirm,
+    openIncomeEdit, openIncomeAdd,
   };
 };

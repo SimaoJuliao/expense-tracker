@@ -7,6 +7,8 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ExpensesPage } from './pages/ExpensesPage';
+import { IncomePage } from './pages/IncomePage';
+import { RecurringIncomePage } from './pages/RecurringIncomePage';
 import { NewExpensePage } from './pages/NewExpensePage';
 import { RecurringExpensesPage } from './pages/RecurringExpensesPage';
 import { AnalysisPage } from './pages/AnalysisPage';
@@ -40,6 +42,8 @@ const App = () => {
         >
           <Route path="/" element={<DashboardPage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
+          <Route path="/income" element={<IncomePage />} />
+          <Route path="/income/recurring" element={<RecurringIncomePage />} />
           <Route path="/expenses/new" element={<NewExpensePage />} />
           <Route path="/expenses/recurring" element={<RecurringExpensesPage />} />
           <Route path="/analysis" element={<AnalysisPage />} />

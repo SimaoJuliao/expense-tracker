@@ -3,7 +3,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { Link } from 'react-router-dom';
-import { TrendingUp, Calendar, Tag, Plus } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Percent, Tag, Plus } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../utils';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { EmptyState } from '../../components/EmptyState';
@@ -14,7 +14,8 @@ import { useDashboardPage } from './DashboardPage.helper';
 export const DashboardPage = () => {
   const {
     expenses, loading, filters,
-    totalSpent, avgDailySpend, topCategory,
+    totalSpent, totalIncome, netBalance, isSurplus, savingsRate,
+    topCategory,
     byCategory, byDay, recentExpenses,
     monthName,
     chartText, chartGrid, tooltipBg, primaryColor,
@@ -36,52 +37,103 @@ export const DashboardPage = () => {
 
       <section aria-labelledby="summary-heading">
         <h2 id="summary-heading" className="sr-only">{t('dashboard.summaryHeading')}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {/* Total Income */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('dashboard.totalSpent')}</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {t('dashboard.totalIncome')}
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-emerald-500" aria-hidden="true" />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold font-mono tracking-tight">{formatCurrency(totalSpent)}</p>
+              <p
+                className="text-2xl font-semibold font-mono tracking-tight text-emerald-600 dark:text-emerald-400"
+                aria-label={`${t('dashboard.totalIncome')}: +${formatCurrency(totalIncome)}`}
+              >
+                +{formatCurrency(totalIncome)}
+              </p>
               <p className="text-xs text-muted-foreground mt-1">{monthName} {filters.year}</p>
             </CardContent>
           </Card>
 
+          {/* Total Expenses */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('dashboard.avgDailySpend')}</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {t('dashboard.totalExpenses')}
+              </CardTitle>
+              <TrendingDown className="h-4 w-4 text-destructive" aria-hidden="true" />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold font-mono tracking-tight">{formatCurrency(avgDailySpend)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{t('dashboard.perDay')}</p>
+              <p
+                className="text-2xl font-semibold font-mono tracking-tight text-destructive"
+                aria-label={`${t('dashboard.totalExpenses')}: ${formatCurrency(totalSpent)}`}
+              >
+                {formatCurrency(totalSpent)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">{monthName} {filters.year}</p>
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Net Balance */}
+          <Card className={isSurplus ? 'border-emerald-200 dark:border-emerald-800' : 'border-destructive/30'}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('dashboard.topCategory')}</CardTitle>
-              <Tag className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {t('dashboard.netBalance')}
+              </CardTitle>
+              {isSurplus
+                ? <ArrowUp className="h-4 w-4 text-emerald-500" aria-hidden="true" />
+                : <ArrowDown className="h-4 w-4 text-destructive" aria-hidden="true" />}
             </CardHeader>
             <CardContent>
-              {topCategory ? (
+              <p
+                className={`text-2xl font-semibold font-mono tracking-tight ${isSurplus ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}
+                aria-label={`${t('dashboard.netBalance')}: ${isSurplus ? t('dashboard.surplus') : t('dashboard.deficit')}, ${formatCurrency(Math.abs(netBalance))}`}
+              >
+                {isSurplus ? '+' : '-'}{formatCurrency(Math.abs(netBalance))}
+              </p>
+              <p className={`text-xs font-medium mt-1 ${isSurplus ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                {isSurplus ? t('dashboard.surplus') : t('dashboard.deficit')}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Savings Rate */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {t('dashboard.savingsRate')}
+              </CardTitle>
+              <Percent className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            </CardHeader>
+            <CardContent>
+              {savingsRate !== null ? (
                 <>
-                  <p className="text-2xl font-semibold flex items-center gap-2">
-                    {topCategory.icon && <span role="img" aria-label={topCategory.name}>{topCategory.icon}</span>}
-                    {topCategory.name}
+                  <p
+                    className={`text-2xl font-semibold font-mono tracking-tight ${savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}
+                    aria-label={savingsRate >= 0
+                      ? t('dashboard.savedPercent', { pct: Math.round(savingsRate) })
+                      : t('dashboard.overspentPercent', { pct: Math.round(Math.abs(savingsRate)) })}
+                  >
+                    {savingsRate >= 0
+                      ? t('dashboard.savedPercent', { pct: Math.round(savingsRate) })
+                      : t('dashboard.overspentPercent', { pct: Math.round(Math.abs(savingsRate)) })}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1 font-mono">{formatCurrency(topCategory.total)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{monthName} {filters.year}</p>
                 </>
               ) : (
-                <p className="text-2xl font-semibold text-muted-foreground">—</p>
+                <>
+                  <p className="text-2xl font-semibold text-muted-foreground">—</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('dashboard.noIncomeData')}</p>
+                </>
               )}
             </CardContent>
           </Card>
         </div>
       </section>
 
-      {expenses.length === 0 ? (
+      {expenses.length === 0 && totalIncome === 0 ? (
         <EmptyState
           icon="📊"
           title={t('dashboard.noExpensesTitle')}
@@ -159,7 +211,23 @@ export const DashboardPage = () => {
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-2">
+          {topCategory && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('dashboard.topCategory')}</CardTitle>
+                <Tag className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold flex items-center gap-2">
+                  {topCategory.icon && <span role="img" aria-label={topCategory.name}>{topCategory.icon}</span>}
+                  {topCategory.name}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 font-mono">{formatCurrency(topCategory.total)}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className={topCategory ? '' : 'lg:col-span-2'}>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base" id="recent-heading">{t('dashboard.recentTransactions')}</CardTitle>
               <Button variant="link" asChild className="h-auto p-0 text-sm">

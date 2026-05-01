@@ -1,5 +1,5 @@
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { formatCurrency } from '../../utils';
@@ -18,14 +18,18 @@ export const AnalysisPage = () => {
     monthCount, setMonthCount,
     monthlyData, yearlyData,
     loading,
-    monthlyTotal, monthlyAvg, bestMonth, worstMonth, hasMonthlyData,
-    yearlyTotal, yearlyAvg, bestYear, worstYear, hasYearlyData,
-    chartText, chartGrid, tooltipBg, primaryColor, t,
+    monthlyExpTotal, monthlyIncTotal,
+    bestMonth, worstMonth, hasMonthlyData,
+    yearlyExpTotal, yearlyIncTotal,
+    bestYear, worstYear, hasYearlyData,
+    chartText, chartGrid, tooltipBg, incomeColor, expenseColor,
+    t,
   } = useAnalysisPage();
 
-  const isYearly = viewMode === 'yearly';
+  // This page supports two granularities (monthly/yearly). To avoid repeating
+  // conditional branches in the JSX, we normalize the mode-derived values here.
+  const isYearly  = viewMode === 'yearly';
   const chartData = isYearly ? yearlyData : monthlyData;
-  const avg       = isYearly ? yearlyAvg  : monthlyAvg;
   const hasData   = isYearly ? hasYearlyData : hasMonthlyData;
 
   if (loading) {
@@ -45,7 +49,6 @@ export const AnalysisPage = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
-          {/* View toggle */}
           <div role="tablist" aria-label="View mode" className="flex bg-muted rounded-lg p-0.5">
             {(['monthly', 'yearly'] as const).map((mode) => (
               <button
@@ -65,7 +68,6 @@ export const AnalysisPage = () => {
             ))}
           </div>
 
-          {/* Period selector — only shown in monthly mode */}
           {!isYearly && (
             <div className="flex items-center gap-2">
               <Label htmlFor="months-select" className="text-sm whitespace-nowrap">
@@ -92,12 +94,12 @@ export const AnalysisPage = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              {t('analysis.totalPeriod')}
+              {t('analysis.incomeCol')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xl font-semibold font-mono">
-              {formatCurrency(isYearly ? yearlyTotal : monthlyTotal)}
+            <p className="text-xl font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+              +{formatCurrency(isYearly ? yearlyIncTotal : monthlyIncTotal)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {isYearly
@@ -110,11 +112,13 @@ export const AnalysisPage = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              {isYearly ? t('analysis.yearlyAvg') : t('analysis.monthlyAvg')}
+              {t('analysis.expensesCol')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xl font-semibold font-mono">{formatCurrency(avg)}</p>
+            <p className="text-xl font-semibold font-mono text-destructive">
+              {formatCurrency(isYearly ? yearlyExpTotal : monthlyExpTotal)}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
               {isYearly ? t('analysis.perYear') : t('analysis.perMonth')}
             </p>
@@ -131,7 +135,7 @@ export const AnalysisPage = () => {
             {(isYearly ? bestYear : bestMonth) ? (
               <>
                 <p className="text-xl font-semibold font-mono text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency((isYearly ? bestYear : bestMonth)!.total)}
+                  {formatCurrency((isYearly ? bestYear : bestMonth)!.expenses)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {(isYearly ? bestYear : bestMonth)!.label}
@@ -150,10 +154,10 @@ export const AnalysisPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {(isYearly ? worstYear : worstMonth)?.total ? (
+            {(isYearly ? worstYear : worstMonth) ? (
               <>
                 <p className="text-xl font-semibold font-mono text-destructive">
-                  {formatCurrency((isYearly ? worstYear : worstMonth)!.total)}
+                  {formatCurrency((isYearly ? worstYear : worstMonth)!.expenses)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {(isYearly ? worstYear : worstMonth)!.label}
@@ -166,50 +170,87 @@ export const AnalysisPage = () => {
         </Card>
       </div>
 
-      {/* Bar chart */}
+      {/* Grouped bar chart: Income vs Expenses */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-base">
-            {isYearly ? t('analysis.yearlySpending') : t('analysis.monthlySpending')}
+            {t('analysis.incomeVsExpenses')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {hasData ? (
-            <ResponsiveContainer width="100%" height={260} aria-hidden="true">
-              <BarChart data={chartData} barCategoryGap="30%">
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: chartText }}
-                  axisLine={{ stroke: chartGrid }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: chartText }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `€${v}`}
-                />
-                <Tooltip
-                  formatter={(v: number) => formatCurrency(v)}
-                  contentStyle={{
-                    background: tooltipBg,
-                    border: `1px solid ${chartGrid}`,
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                  }}
-                  cursor={{ fill: chartGrid }}
-                />
-                {avg > 0 && (
-                  <ReferenceLine
-                    y={avg}
-                    stroke={chartText}
-                    strokeDasharray="4 4"
-                    label={{ value: 'avg', fill: chartText, fontSize: 10, position: 'insideTopRight' }}
+            <>
+              {/* The chart is treated as decorative for screen readers; the same data is
+                  provided below as a table (via <details>). */}
+              <ResponsiveContainer width="100%" height={280} aria-hidden="true">
+                <BarChart data={chartData} barCategoryGap="25%" barGap={2}>
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: chartText }}
+                    axisLine={{ stroke: chartGrid }}
+                    tickLine={false}
                   />
-                )}
-                <Bar dataKey="total" fill={primaryColor} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+                  <YAxis
+                    tick={{ fontSize: 11, fill: chartText }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `€${v}`}
+                  />
+                  <Tooltip
+                    formatter={(v: number, name: string) => [
+                      formatCurrency(v),
+                      name === 'income' ? t('analysis.incomeLabel') : t('analysis.expensesLabel'),
+                    ]}
+                    contentStyle={{
+                      background: tooltipBg,
+                      border: `1px solid ${chartGrid}`,
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                    cursor={{ fill: chartGrid }}
+                  />
+                  <Legend
+                    formatter={(value) => (
+                      <span className="text-xs">
+                        {value === 'income' ? t('analysis.incomeLabel') : t('analysis.expensesLabel')}
+                      </span>
+                    )}
+                  />
+                  <Bar dataKey="income"   name="income"   fill={incomeColor}  radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expenses" name="expenses" fill={expenseColor} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              {/* SR-only data table */}
+              <details className="mt-2">
+                <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                  {t('dashboard.viewDataTable')}
+                </summary>
+                <table className="mt-2 w-full text-xs" aria-label={t('analysis.incomeVsExpenses')}>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="text-left py-1 text-muted-foreground">
+                        {isYearly ? t('analysis.yearCol') : t('analysis.monthCol')}
+                      </th>
+                      <th scope="col" className="text-right py-1 text-muted-foreground">{t('analysis.incomeCol')}</th>
+                      <th scope="col" className="text-right py-1 text-muted-foreground">{t('analysis.expensesCol')}</th>
+                      <th scope="col" className="text-right py-1 text-muted-foreground">{t('analysis.netCol')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chartData.map((d) => (
+                      <tr key={d.key}>
+                        <td className="py-0.5">{d.label}</td>
+                        <td className="py-0.5 text-right text-emerald-600 dark:text-emerald-400">+{formatCurrency(d.income)}</td>
+                        <td className="py-0.5 text-right text-destructive">{formatCurrency(d.expenses)}</td>
+                        <td className={`py-0.5 text-right font-medium ${d.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                          {d.net >= 0 ? '+' : ''}{formatCurrency(d.net)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            </>
           ) : (
             <p className="text-muted-foreground text-sm py-8 text-center">{t('analysis.noData')}</p>
           )}
@@ -231,40 +272,59 @@ export const AnalysisPage = () => {
                   {isYearly ? t('analysis.yearCol') : t('analysis.monthCol')}
                 </th>
                 <th scope="col" className="text-right px-6 py-3 font-medium text-muted-foreground">
-                  {t('analysis.totalCol')}
+                  {t('analysis.incomeCol')}
                 </th>
                 <th scope="col" className="text-right px-6 py-3 font-medium text-muted-foreground hidden sm:table-cell">
+                  {t('analysis.expensesCol')}
+                </th>
+                <th scope="col" className="text-right px-6 py-3 font-medium text-muted-foreground hidden sm:table-cell">
+                  {t('analysis.netCol')}
+                </th>
+                <th scope="col" className="text-right px-6 py-3 font-medium text-muted-foreground hidden md:table-cell">
                   {isYearly ? t('analysis.changeColYear') : t('analysis.changeCol')}
-                </th>
-                <th scope="col" className="text-right px-6 py-3 font-medium text-muted-foreground hidden sm:table-cell">
-                  {t('analysis.changePercent')}
                 </th>
               </tr>
             </thead>
             <tbody>
               {chartData.map((d, i) => {
-                const prev  = i > 0 ? chartData[i - 1].total : null;
-                const diff  = prev !== null ? d.total - prev : null;
-                const pct   = prev !== null && prev > 0 ? ((d.total - prev) / prev) * 100 : null;
-                const isUp  = diff !== null && diff > 0;
+                // Change vs previous period:
+                // - `prev` only exists when there is a previous item
+                // - percentage only makes sense when `prev > 0` (avoids division by zero)
+                const prev   = i > 0 ? chartData[i - 1].expenses : null;
+                const diff   = prev !== null ? d.expenses - prev : null;
+                const pct    = prev !== null && prev > 0 ? ((d.expenses - prev) / prev) * 100 : null;
+                const isUp   = diff !== null && diff > 0;
                 const isDown = diff !== null && diff < 0;
+                const isSurplus = d.net >= 0;
 
                 return (
                   <tr key={d.key} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="px-6 py-3 font-medium">{d.label}</td>
-                    <td className="px-6 py-3 text-right font-mono font-semibold">
-                      {d.total > 0 ? formatCurrency(d.total) : <span className="text-muted-foreground">—</span>}
+                    <td className="px-6 py-3 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                      {d.income > 0
+                        ? <span aria-label={`+${formatCurrency(d.income)}`}>+{formatCurrency(d.income)}</span>
+                        : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-6 py-3 text-right font-mono hidden sm:table-cell">
-                      {diff === null || diff === 0 ? (
+                      {d.expenses > 0 ? formatCurrency(d.expenses) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-6 py-3 text-right font-mono hidden sm:table-cell">
+                      {d.income === 0 && d.expenses === 0 ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
-                        <span className={isUp ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}>
-                          {isUp ? '+' : ''}{formatCurrency(diff)}
+                        <span
+                          className={isSurplus ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}
+                          // The UI uses +/− and color; this label ensures an explicit reading for
+                          // assistive tech while keeping the value as a positive magnitude.
+                          aria-label={`${isSurplus ? t('dashboard.surplus') : t('dashboard.deficit')}: ${formatCurrency(Math.abs(d.net))}`}
+                        >
+                          {isSurplus ? '+' : '-'}{formatCurrency(Math.abs(d.net))}
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-3 text-right hidden sm:table-cell">
+                    <td className="px-6 py-3 text-right hidden md:table-cell">
+                      {/* If there's no previous period (or `prev` is invalid), or the change is 0,
+                          we show “—” to avoid visual noise. */}
                       {pct === null || pct === 0 ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (

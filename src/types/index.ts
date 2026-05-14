@@ -18,6 +18,29 @@ export interface Expense {
   category?: Category;
 }
 
+export interface AccountSettings {
+  user_id: string;
+  account_type: 'personal' | 'group';
+  created_at: string;
+}
+
+export interface GroupMember {
+  id: string;
+  user_id: string;
+  name: string;
+  position: number;
+  created_at: string;
+}
+
+export interface CategorySplit {
+  id: string;
+  user_id: string;
+  category_id: string;
+  member_id: string;
+  percentage: number;
+  created_at: string;
+}
+
 export interface ExpenseFilters {
   month: number;
   year: number;
@@ -73,6 +96,7 @@ export interface Income {
   amount: number;
   description: string;
   income_category_id: string;
+  member_id: string | null;
   date: string;
   created_at: string;
   income_category?: IncomeCategory;
@@ -89,6 +113,7 @@ export interface NewIncome {
   amount: number;
   description: string;
   income_category_id: string;
+  member_id: string | null;
   date: string;
 }
 

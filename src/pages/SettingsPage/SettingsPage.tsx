@@ -1,4 +1,4 @@
-import { Sun, Moon, User, Languages } from 'lucide-react';
+import { Sun, Moon, User, Languages, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { useSettingsPage } from './SettingsPage.helper';
 
 export const SettingsPage = () => {
-  const { user, t, locale, setLocale, theme, setTheme } = useSettingsPage();
+  const { user, t, locale, setLocale, theme, setTheme, currency, setCurrency, currencies } = useSettingsPage();
 
   return (
     <div className="max-w-xl">
@@ -96,6 +96,32 @@ export const SettingsPage = () => {
                 <SelectContent>
                   <SelectItem value="en">{t('settings.english')}</SelectItem>
                   <SelectItem value="pt">{t('settings.portuguese')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <CardTitle className="text-sm font-semibold">{t('settings.currencySection')}</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1.5">
+              <Label htmlFor="currency-select" className="text-xs text-muted-foreground">
+                {t('settings.currencyLabel')}
+              </Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger id="currency-select" className="w-56 h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from './useAuthStore';
 import type { Expense, ExpenseFilters, NewExpense } from '../types';
 import { getCurrentMonthYear, getDaysInMonth } from '../utils';
 
@@ -65,43 +66,64 @@ export const useExpenseStore = create<ExpenseState>()(
 
       addExpense: async (expense) => {
         set({ loading: true, error: null });
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) {
+        const user = useAuthStore.getState().user;
+        if (!user) {
           set({ error: 'Not authenticated', loading: false });
           return;
         }
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('expenses')
-          .insert({ ...expense, user_id: userData.user.id });
+          .insert({ ...expense, user_id: user.id })
+          .select('*, category:categories(*)')
+          .single();
         if (error) {
           set({ error: error.message, loading: false });
           throw error;
         }
-        // Clear category/search filters so the new expense is always visible after adding
-        set((state) => ({ filters: { ...state.filters, categoryId: null, search: '' } }));
-        await get().fetchExpenses();
+        set((state) => ({
+          expenses: [data as Expense, ...state.expenses]
+            .sort((a, b) => b.date.localeCompare(a.date)),
+          filters: { ...state.filters, categoryId: null, search: '' },
+          loading: false,
+        }));
       },
 
       bulkAddExpenses: async (expenses) => {
         set({ loading: true, error: null });
-        const { error } = await supabase.from('expenses').insert(expenses);
+        const { data, error } = await supabase
+          .from('expenses')
+          .insert(expenses)
+          .select('*, category:categories(*)');
         if (error) {
           set({ error: error.message, loading: false });
           throw error;
         }
-        await get().fetchExpenses();
+        set((state) => ({
+          expenses: [...state.expenses, ...(data as Expense[])]
+            .sort((a, b) => b.date.localeCompare(a.date)),
+          loading: false,
+        }));
       },
 
       updateExpense: async (id, updates) => {
         set({ loading: true, error: null });
-        const { error } = await supabase.from('expenses').update(updates).eq('id', id);
+        const { data, error } = await supabase
+          .from('expenses')
+          .update(updates)
+          .eq('id', id)
+          .select('*, category:categories(*)')
+          .single();
         if (error) {
           set({ error: error.message, loading: false });
           throw error;
         }
-        // Clear category/search filters so the updated expense is always visible
-        set((state) => ({ filters: { ...state.filters, categoryId: null, search: '' } }));
-        await get().fetchExpenses();
+        set((state) => ({
+          expenses: state.expenses
+            .map((e) => e.id === id ? data as Expense : e)
+            .sort((a, b) => b.date.localeCompare(a.date)),
+          filters: { ...state.filters, categoryId: null, search: '' },
+          loading: false,
+        }));
       },
 
       deleteExpense: async (id) => {

@@ -2,6 +2,7 @@ import { useState, useId } from 'react';
 import { toast } from 'sonner';
 import { useIncomeStore } from '../../store/useIncomeStore';
 import { useIncomeCategoryStore } from '../../store/useIncomeCategoryStore';
+import { useGroupStore } from '../../store/useGroupStore';
 import { useTranslation } from '../../i18n';
 import type { Income } from '../../types';
 
@@ -16,8 +17,10 @@ export const useIncomeForm = ({ income, onSuccess, onCancel }: IncomeFormProps) 
   const updateIncome = useIncomeStore((s) => s.updateIncome);
   const loading      = useIncomeStore((s) => s.loading);
   const incomeCategories = useIncomeCategoryStore((s) => s.incomeCategories);
+  const { accountType, members } = useGroupStore();
   const { t } = useTranslation();
 
+  const isGroupAccount = accountType === 'group';
   const uid = useId();
   const today = new Date().toISOString().split('T')[0];
 
@@ -25,6 +28,7 @@ export const useIncomeForm = ({ income, onSuccess, onCancel }: IncomeFormProps) 
     amount:             income?.amount ?? 0,
     description:        income?.description ?? '',
     income_category_id: income?.income_category_id ?? (incomeCategories[0]?.id ?? ''),
+    member_id:          income?.member_id ?? null as string | null,
     date:               income?.date ?? today,
   });
 
@@ -48,6 +52,7 @@ export const useIncomeForm = ({ income, onSuccess, onCancel }: IncomeFormProps) 
         amount:             form.amount,
         description:        form.description.trim(),
         income_category_id: form.income_category_id,
+        member_id:          isGroupAccount ? (form.member_id || null) : null,
         date:               form.date,
       };
       if (income) {
@@ -72,8 +77,11 @@ export const useIncomeForm = ({ income, onSuccess, onCancel }: IncomeFormProps) 
     amountId:   `${uid}-amount`,
     descId:     `${uid}-description`,
     categoryId: `${uid}-category`,
+    memberId:   `${uid}-member`,
     dateId:     `${uid}-date`,
     incomeCategories,
+    isGroupAccount,
+    members,
     onCancel,
     t,
   };

@@ -1,6 +1,7 @@
-import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, RefreshCw, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatCurrency, formatDate, getMonthName } from '../../utils';
+import { formatDate, getMonthName } from '../../utils';
+import { useFormatCurrency } from '../../store/useCurrencyStore';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { EmptyState } from '../../components/EmptyState';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -20,6 +21,7 @@ import {
 import { useIncomePage, YEARS, MONTHS } from './IncomePage.helper';
 
 export const IncomePage = () => {
+  const formatCurrency = useFormatCurrency();
   const {
     filtered, loading, filters, setFilters,
     incomeCategories,
@@ -28,7 +30,7 @@ export const IncomePage = () => {
     addModalOpen, setAddModalOpen,
     applying, pendingRecurring,
     monthName, total,
-    handleDelete, handleApplyRecurring,
+    handleDelete, handleExport, handleApplyRecurring,
     t,
   } = useIncomePage();
 
@@ -48,6 +50,10 @@ export const IncomePage = () => {
               <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
               {t('recurringIncome.manageLink')}
             </Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
+            <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+            {t('settings.exportCsv')}
           </Button>
           <Button onClick={() => setAddModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" aria-hidden="true" />

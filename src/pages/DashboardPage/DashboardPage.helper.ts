@@ -1,18 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
-import { useIncomeCategoryStore } from '../../store/useIncomeCategoryStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useTranslation } from '../../i18n';
-import { getMonthName, getDaysInMonth } from '../../utils';
+import { getMonthName, getDaysInMonth, getCurrentMonthYear } from '../../utils';
 import { supabase } from '../../lib/supabase';
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1'];
 
 export const useDashboardPage = () => {
-  const { expenses, loading: expLoading, filters, fetchExpenses, resetFilters } = useExpenseStore();
-  const { fetchCategories, seedDefaultCategories } = useCategoryStore();
-  const { fetchIncomeCategories, seedDefaultIncomeCategories } = useIncomeCategoryStore();
+  const { expenses, loading: expLoading, filters, fetchExpenses } = useExpenseStore();
+  const { fetchCategories } = useCategoryStore();
   const { theme } = useThemeStore();
   const { t } = useTranslation();
 
@@ -28,34 +26,25 @@ export const useDashboardPage = () => {
 
   useEffect(() => {
     const init = async () => {
-      await fetchCategories();
-      await seedDefaultCategories();
-      await fetchIncomeCategories();
-      await seedDefaultIncomeCategories();
-      useExpenseStore.getState().resetFilters();
-      await fetchExpenses();
-    };
-    init();
-  }, [fetchCategories, seedDefaultCategories, fetchIncomeCategories, seedDefaultIncomeCategories, fetchExpenses, resetFilters]);
+      const { month: m, year: y } = getCurrentMonthYear();
+      const store = useExpenseStore.getState();
+      const alreadyLoaded = store.filters.month === m && store.filters.year === y && store.filters.categoryId === null;
 
-  useEffect(() => {
-    const fetchMonthIncome = async () => {
-      setIncomeLoading(true);
-      const now = new Date();
-      const m = now.getMonth() + 1;
-      const y = now.getFullYear();
+      useExpenseStore.getState().setFilters({ month: m, year: y, categoryId: null, search: '' });
+
       const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const endDate   = `${y}-${String(m).padStart(2, '0')}-${String(getDaysInMonth(y, m)).padStart(2, '0')}`;
-      const { data } = await supabase
-        .from('incomes')
-        .select('amount')
-        .gte('date', startDate)
-        .lte('date', endDate);
-      setTotalIncome((data ?? []).reduce((sum, r) => sum + Number(r.amount), 0));
+
+      setIncomeLoading(true);
+      const [, incomeResult] = await Promise.all([
+        alreadyLoaded ? fetchCategories() : Promise.all([fetchCategories(), fetchExpenses()]),
+        supabase.from('incomes').select('amount').gte('date', startDate).lte('date', endDate),
+      ]);
+      setTotalIncome((incomeResult.data ?? []).reduce((sum, r) => sum + Number(r.amount), 0));
       setIncomeLoading(false);
     };
-    fetchMonthIncome();
-  }, []);
+    init();
+  }, [fetchCategories, fetchExpenses]);
 
   const totalSpent = useMemo(
     () => expenses.reduce((sum, e) => sum + Number(e.amount), 0),

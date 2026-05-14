@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from './useAuthStore';
 import type { Income, IncomeFilters, NewIncome } from '../types';
 import { getCurrentMonthYear, getDaysInMonth } from '../utils';
 
@@ -64,31 +65,47 @@ export const useIncomeStore = create<IncomeState>()(
 
       addIncome: async (income) => {
         set({ loading: true, error: null });
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) {
+        const user = useAuthStore.getState().user;
+        if (!user) {
           set({ error: 'Not authenticated', loading: false });
           return;
         }
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('incomes')
-          .insert({ ...income, user_id: userData.user.id });
+          .insert({ ...income, user_id: user.id })
+          .select('*, income_category:income_categories(*)')
+          .single();
         if (error) {
           set({ error: error.message, loading: false });
           throw error;
         }
-        set((state) => ({ filters: { ...state.filters, categoryId: null, search: '' } }));
-        await get().fetchIncomes();
+        set((state) => ({
+          incomes: [data as Income, ...state.incomes]
+            .sort((a, b) => b.date.localeCompare(a.date)),
+          filters: { ...state.filters, categoryId: null, search: '' },
+          loading: false,
+        }));
       },
 
       updateIncome: async (id, updates) => {
         set({ loading: true, error: null });
-        const { error } = await supabase.from('incomes').update(updates).eq('id', id);
+        const { data, error } = await supabase
+          .from('incomes')
+          .update(updates)
+          .eq('id', id)
+          .select('*, income_category:income_categories(*)')
+          .single();
         if (error) {
           set({ error: error.message, loading: false });
           throw error;
         }
-        set((state) => ({ filters: { ...state.filters, categoryId: null, search: '' } }));
-        await get().fetchIncomes();
+        set((state) => ({
+          incomes: state.incomes
+            .map((i) => i.id === id ? data as Income : i)
+            .sort((a, b) => b.date.localeCompare(a.date)),
+          filters: { ...state.filters, categoryId: null, search: '' },
+          loading: false,
+        }));
       },
 
       deleteIncome: async (id) => {
@@ -99,7 +116,7 @@ export const useIncomeStore = create<IncomeState>()(
           throw error;
         }
         set((state) => ({
-          incomes: state.incomes.filter((e) => e.id !== id),
+          incomes: state.incomes.filter((i) => i.id !== id),
           loading: false,
         }));
       },

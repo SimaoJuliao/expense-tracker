@@ -1,7 +1,14 @@
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('de-DE', {
+const CURRENCY_LOCALES: Record<string, string> = {
+  EUR: 'de-DE', USD: 'en-US', GBP: 'en-GB', BRL: 'pt-BR',
+  CHF: 'de-CH', CAD: 'en-CA', AUD: 'en-AU',
+  PLN: 'pl-PL', SEK: 'sv-SE', NOK: 'nb-NO', DKK: 'da-DK',
+};
+
+export const formatCurrency = (amount: number, currency = 'EUR'): string => {
+  const locale = CURRENCY_LOCALES[currency] ?? 'en-US';
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'EUR',
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
@@ -10,10 +17,6 @@ export const formatCurrency = (amount: number): string => {
 export const formatDate = (dateStr: string): string => {
   const [year, month, day] = dateStr.split('-');
   return `${day}/${month}/${year}`;
-};
-
-export const toInputDate = (dateStr: string): string => {
-  return dateStr;
 };
 
 export const getCurrentMonthYear = (): { month: number; year: number } => {

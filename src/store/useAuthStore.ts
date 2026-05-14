@@ -43,12 +43,18 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   register: async (email, password) => {
     set({ loading: true, error: null });
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
       set({ error: error.message, loading: false });
       throw error;
     }
-    set({ loading: false });
+    // When Supabase auto-confirms (email confirmation disabled), signUp returns a
+    // session immediately. Store it so callers can detect the auto-login.
+    if (data.session) {
+      set({ session: data.session, user: data.session.user, loading: false });
+    } else {
+      set({ loading: false });
+    }
   },
 
   logout: async () => {

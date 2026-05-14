@@ -1,4 +1,5 @@
 export { AnalysisPage } from './AnalysisPage';
+export { GroupSummaryPage } from './GroupSummaryPage';
 export { CategoriesPage } from './CategoriesPage';
 export { DashboardPage } from './DashboardPage';
 export { ExpensesPage } from './ExpensesPage';

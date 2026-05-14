@@ -4,7 +4,8 @@ import {
 } from 'recharts';
 import { Link } from 'react-router-dom';
 import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Percent, Tag, Plus } from 'lucide-react';
-import { formatCurrency, formatDate } from '../../utils';
+import { formatDate } from '../../utils';
+import { useFormatCurrency } from '../../store/useCurrencyStore';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { EmptyState } from '../../components/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useDashboardPage } from './DashboardPage.helper';
 
 export const DashboardPage = () => {
+  const formatCurrency = useFormatCurrency();
   const {
     expenses, loading, filters,
     totalSpent, totalIncome, netBalance, isSurplus, savingsRate,

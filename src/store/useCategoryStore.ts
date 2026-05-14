@@ -1,10 +1,13 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from './useAuthStore';
 import type { Category, NewCategory } from '../types';
 
-let seedingPromise: Promise<void> | null = null;
+// Per-user deduplication: prevents re-seeding in the same session AND
+// prevents the stale-promise bug when a new user logs in after a previous one.
+const seededUsers = new Set<string>();
 
-const DEFAULT_CATEGORIES: Omit<NewCategory, never>[] = [
+const DEFAULT_CATEGORIES: NewCategory[] = [
   { name: 'Food & Drinks', icon: '🍔', color: '#f97316' },
   { name: 'Transport', icon: '🚗', color: '#3b82f6' },
   { name: 'Housing', icon: '🏠', color: '#8b5cf6' },
@@ -40,6 +43,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       .select('*')
       .order('created_at', { ascending: true });
     if (error) {
+      console.error('fetchCategories error:', error);
       set({ error: error.message, loading: false });
       return;
     }
@@ -47,36 +51,44 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   },
 
   seedDefaultCategories: async () => {
-    if (seedingPromise) return seedingPromise;
-    seedingPromise = (async () => {
-      const { data: existing } = await supabase.from('categories').select('id').limit(1);
-      if (existing && existing.length > 0) return;
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+    const userId = user.id;
 
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+    // Deduplicate per user — synchronous check+mark prevents concurrent double-seeding
+    if (seededUsers.has(userId)) return;
+    seededUsers.add(userId);
 
-      const rows = DEFAULT_CATEGORIES.map((c) => ({ ...c, user_id: userData.user!.id }));
-      await supabase.from('categories').insert(rows);
-      await get().fetchCategories();
-    })();
-    return seedingPromise;
+    const { data: existing } = await supabase.from('categories').select('id').limit(1);
+    if (existing && existing.length > 0) return;
+
+    const rows = DEFAULT_CATEGORIES.map((c) => ({ ...c, user_id: userId }));
+    const { error } = await supabase.from('categories').insert(rows);
+    if (error) {
+      console.error('seedDefaultCategories insert error:', error);
+      seededUsers.delete(userId); // allow retry on transient failure
+      return;
+    }
+    await get().fetchCategories();
   },
 
   addCategory: async (cat) => {
     set({ loading: true, error: null });
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
+    const user = useAuthStore.getState().user;
+    if (!user) {
       set({ error: 'Not authenticated', loading: false });
-      return;
+      throw new Error('Not authenticated');
     }
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('categories')
-      .insert({ ...cat, user_id: userData.user.id });
+      .insert({ ...cat, user_id: user.id })
+      .select()
+      .single();
     if (error) {
       set({ error: error.message, loading: false });
       throw error;
     }
-    await get().fetchCategories();
+    set((state) => ({ categories: [...state.categories, data as Category], loading: false }));
   },
 
   updateCategory: async (id, updates) => {
@@ -86,7 +98,10 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       set({ error: error.message, loading: false });
       throw error;
     }
-    await get().fetchCategories();
+    set((state) => ({
+      categories: state.categories.map((c) => c.id === id ? { ...c, ...updates } : c),
+      loading: false,
+    }));
   },
 
   deleteCategory: async (id) => {

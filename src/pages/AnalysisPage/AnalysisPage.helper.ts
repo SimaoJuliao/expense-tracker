@@ -37,7 +37,6 @@ export const useAnalysisPage = () => {
   const chartText    = theme === 'dark' ? 'hsl(215 16% 57%)' : 'hsl(220 9% 46%)';
   const chartGrid    = theme === 'dark' ? 'hsl(224 22% 18%)' : 'hsl(220 13% 87%)';
   const tooltipBg    = theme === 'dark' ? 'hsl(224 22% 13%)' : '#ffffff';
-  const primaryColor = theme === 'dark' ? 'hsl(160, 84%, 45%)' : 'hsl(160, 84%, 39%)';
   const incomeColor  = theme === 'dark' ? 'hsl(160, 84%, 45%)' : 'hsl(160, 84%, 39%)';
   const expenseColor = theme === 'dark' ? 'hsl(0, 84%, 60%)' : 'hsl(0, 72%, 51%)';
 
@@ -98,9 +97,12 @@ export const useAnalysisPage = () => {
     if (viewMode !== 'yearly') return;
     const load = async () => {
       setLoading(true);
+      const currentYear = new Date().getFullYear();
+      const startDate = `${currentYear - 9}-01-01`;
+      const endDate   = `${currentYear}-12-31`;
       const [expResult, incResult] = await Promise.all([
-        supabase.from('expenses').select('date, amount'),
-        supabase.from('incomes').select('date, amount'),
+        supabase.from('expenses').select('date, amount').gte('date', startDate).lte('date', endDate),
+        supabase.from('incomes').select('date, amount').gte('date', startDate).lte('date', endDate),
       ]);
 
       const byYearExp = new Map<number, number>();
@@ -171,7 +173,7 @@ export const useAnalysisPage = () => {
     yearlyExpTotal, yearlyIncTotal, yearlyExpAvg,
     bestYear, worstYear, hasYearlyData,
     // chart
-    chartText, chartGrid, tooltipBg, primaryColor, incomeColor, expenseColor,
+    chartText, chartGrid, tooltipBg, incomeColor, expenseColor,
     t,
   };
 };

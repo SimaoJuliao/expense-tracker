@@ -11,8 +11,9 @@ export const IncomeForm = (props: IncomeFormProps) => {
   const {
     form, setForm, errors, loading,
     handleSubmit,
-    amountId, descId, categoryId, dateId,
+    amountId, descId, categoryId, memberId, dateId,
     incomeCategories,
+    isGroupAccount, members,
     onCancel, t,
   } = useIncomeForm(props);
 
@@ -96,6 +97,28 @@ export const IncomeForm = (props: IncomeFormProps) => {
           </p>
         )}
       </div>
+
+      {isGroupAccount && members.length > 0 && (
+        <div className="space-y-1.5">
+          <Label htmlFor={memberId}>
+            {t('income.memberLabel')} <span className="text-muted-foreground font-normal">{t('common.optional')}</span>
+          </Label>
+          <Select
+            value={form.member_id ?? '__none__'}
+            onValueChange={(v) => setForm((f) => ({ ...f, member_id: v === '__none__' ? null : v }))}
+          >
+            <SelectTrigger id={memberId}>
+              <SelectValue placeholder={t('income.memberPlaceholder')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">{t('income.memberNone')}</SelectItem>
+              {members.map((m) => (
+                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <Label htmlFor={dateId}>

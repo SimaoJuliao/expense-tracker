@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Download, RefreshCw } from 'lucide-react';
-import { formatCurrency, formatDate, getMonthName } from '../../utils';
+import { formatDate, getMonthName } from '../../utils';
+import { useFormatCurrency } from '../../store/useCurrencyStore';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { EmptyState } from '../../components/EmptyState';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -20,6 +21,7 @@ import {
 import { useExpensesPage, YEARS, MONTHS } from './ExpensesPage.helper';
 
 export const ExpensesPage = () => {
+  const formatCurrency = useFormatCurrency();
   const {
     filtered, loading, filters, setFilters, categories,
     deleteId, setDeleteId, deleting,

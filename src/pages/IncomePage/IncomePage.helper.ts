@@ -4,8 +4,9 @@ import { useIncomeStore } from '../../store/useIncomeStore';
 import { useIncomeCategoryStore } from '../../store/useIncomeCategoryStore';
 import { useRecurringIncomeStore } from '../../store/useRecurringIncomeStore';
 import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from '../../i18n';
-import { getMonthName, getDaysInMonth } from '../../utils';
+import { getMonthName, getDaysInMonth, exportToCSV } from '../../utils';
 import type { Income } from '../../types';
 
 export const YEARS  = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i);
@@ -13,7 +14,7 @@ export const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 export const useIncomePage = () => {
   const { incomes, loading, filters, fetchIncomes, deleteIncome, setFilters } = useIncomeStore();
-  const { incomeCategories, fetchIncomeCategories, seedDefaultIncomeCategories } = useIncomeCategoryStore();
+  const { incomeCategories, fetchIncomeCategories } = useIncomeCategoryStore();
   const { recurring, fetchRecurring } = useRecurringIncomeStore();
   const { t } = useTranslation();
 
@@ -23,15 +24,9 @@ export const useIncomePage = () => {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [applying, setApplying]         = useState(false);
 
-  useEffect(() => {
-    const init = async () => {
-      await fetchIncomeCategories();
-      await seedDefaultIncomeCategories();
-    };
-    init();
-  }, [fetchIncomeCategories, seedDefaultIncomeCategories]);
+  useEffect(() => { fetchIncomeCategories(); }, [fetchIncomeCategories]);
 
-  useEffect(() => { fetchIncomes();   }, [filters, fetchIncomes]);
+  useEffect(() => { fetchIncomes(); }, [filters.month, filters.year, filters.categoryId, fetchIncomes]);
   useEffect(() => { fetchRecurring(); }, [fetchRecurring]);
 
   const filtered = useMemo(() => {
@@ -51,19 +46,33 @@ export const useIncomePage = () => {
 
   const pendingRecurring = useMemo(() => {
     if (filters.month === 0) return [];
-    return recurring.filter((r) => {
-      if (!r.active) return false;
-      return !incomes.some(
-        (e) =>
-          e.description === r.description &&
-          e.income_category_id === r.income_category_id &&
-          Number(e.amount) === Number(r.amount) &&
-          e.date.startsWith(`${filters.year}-${String(filters.month).padStart(2, '0')}`)
-      );
-    });
+    const monthPrefix = `${filters.year}-${String(filters.month).padStart(2, '0')}`;
+    const applied = new Set(
+      incomes
+        .filter((i) => i.date.startsWith(monthPrefix))
+        .map((i) => `${i.description}|${i.income_category_id}|${Number(i.amount)}`)
+    );
+    return recurring.filter(
+      (r) => r.active && !applied.has(`${r.description}|${r.income_category_id}|${Number(r.amount)}`)
+    );
   }, [recurring, incomes, filters.month, filters.year]);
 
   const monthName = filters.month === 0 ? t('income.allMonths') : getMonthName(filters.month);
+
+  const handleExport = () => {
+    if (filtered.length === 0) { toast.error(t('income.exportNoData')); return; }
+    const data = filtered.map((i) => ({
+      date: i.date,
+      description: i.description,
+      category: i.income_category?.name ?? 'Unknown',
+      amount: Number(i.amount),
+    }));
+    const filename = filters.month === 0
+      ? `income-${filters.year}.csv`
+      : `income-${filters.year}-${String(filters.month).padStart(2, '0')}.csv`;
+    exportToCSV(data, filename);
+    toast.success(t('income.exportSuccess', { count: data.length, filename }));
+  };
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -83,8 +92,8 @@ export const useIncomePage = () => {
     if (pendingRecurring.length === 0) return;
     setApplying(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+      const user = useAuthStore.getState().user;
+      if (!user) return;
       const rows = pendingRecurring.map((r) => {
         const day = Math.min(r.day_of_month, getDaysInMonth(filters.year, filters.month));
         return {
@@ -92,7 +101,7 @@ export const useIncomePage = () => {
           amount:             r.amount,
           income_category_id: r.income_category_id,
           date: `${filters.year}-${String(filters.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-          user_id: userData.user!.id,
+          user_id: user.id,
         };
       });
       const { error } = await supabase.from('incomes').insert(rows);
@@ -115,7 +124,7 @@ export const useIncomePage = () => {
     applying,
     pendingRecurring,
     monthName, total,
-    handleDelete, handleApplyRecurring,
+    handleDelete, handleExport, handleApplyRecurring,
     t,
   };
 };

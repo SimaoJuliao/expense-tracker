@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from './useAuthStore';
 import type { RecurringIncome, NewRecurringIncome } from '../types';
 
 interface RecurringIncomeState {
@@ -14,7 +15,7 @@ interface RecurringIncomeState {
   clearError: () => void;
 }
 
-export const useRecurringIncomeStore = create<RecurringIncomeState>()((set, get) => ({
+export const useRecurringIncomeStore = create<RecurringIncomeState>()((set) => ({
   recurring: [],
   loading: false,
   error: null,
@@ -34,32 +35,45 @@ export const useRecurringIncomeStore = create<RecurringIncomeState>()((set, get)
 
   addRecurring: async (data) => {
     set({ loading: true, error: null });
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
+    const user = useAuthStore.getState().user;
+    if (!user) {
       set({ error: 'Not authenticated', loading: false });
       return;
     }
-    const { error } = await supabase
+    const { data: row, error } = await supabase
       .from('recurring_incomes')
-      .insert({ ...data, user_id: userData.user.id });
+      .insert({ ...data, user_id: user.id })
+      .select('*, income_category:income_categories(*)')
+      .single();
     if (error) {
       set({ error: error.message, loading: false });
       throw error;
     }
-    await get().fetchRecurring();
+    set((state) => ({
+      recurring: [...state.recurring, row as RecurringIncome]
+        .sort((a, b) => a.day_of_month - b.day_of_month),
+      loading: false,
+    }));
   },
 
   updateRecurring: async (id, data) => {
     set({ loading: true, error: null });
-    const { error } = await supabase
+    const { data: row, error } = await supabase
       .from('recurring_incomes')
       .update(data)
-      .eq('id', id);
+      .eq('id', id)
+      .select('*, income_category:income_categories(*)')
+      .single();
     if (error) {
       set({ error: error.message, loading: false });
       throw error;
     }
-    await get().fetchRecurring();
+    set((state) => ({
+      recurring: state.recurring
+        .map((r) => r.id === id ? row as RecurringIncome : r)
+        .sort((a, b) => a.day_of_month - b.day_of_month),
+      loading: false,
+    }));
   },
 
   deleteRecurring: async (id) => {

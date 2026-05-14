@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from './useAuthStore';
 import type { IncomeCategory, NewIncomeCategory } from '../types';
 
-let seedingPromise: Promise<void> | null = null;
+const seededUsers = new Set<string>();
 
-const DEFAULT_INCOME_CATEGORIES: Omit<NewIncomeCategory, never>[] = [
+const DEFAULT_INCOME_CATEGORIES: NewIncomeCategory[] = [
   { name: 'Salary',      icon: '💼', color: '#10b981' },
   { name: 'Freelance',   icon: '💻', color: '#3b82f6' },
   { name: 'Investments', icon: '📈', color: '#f59e0b' },
@@ -45,36 +46,42 @@ export const useIncomeCategoryStore = create<IncomeCategoryState>((set, get) => 
   },
 
   seedDefaultIncomeCategories: async () => {
-    if (seedingPromise) return seedingPromise;
-    seedingPromise = (async () => {
-      const { data: existing } = await supabase.from('income_categories').select('id').limit(1);
-      if (existing && existing.length > 0) return;
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+    const userId = user.id;
 
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+    if (seededUsers.has(userId)) return;
+    seededUsers.add(userId);
 
-      const rows = DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, user_id: userData.user!.id }));
-      await supabase.from('income_categories').insert(rows);
-      await get().fetchIncomeCategories();
-    })();
-    return seedingPromise;
+    const { data: existing } = await supabase.from('income_categories').select('id').limit(1);
+    if (existing && existing.length > 0) return;
+
+    const rows = DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, user_id: userId }));
+    const { error } = await supabase.from('income_categories').insert(rows);
+    if (error) {
+      seededUsers.delete(userId);
+      return;
+    }
+    await get().fetchIncomeCategories();
   },
 
   addIncomeCategory: async (cat) => {
     set({ loading: true, error: null });
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
+    const user = useAuthStore.getState().user;
+    if (!user) {
       set({ error: 'Not authenticated', loading: false });
-      return;
+      throw new Error('Not authenticated');
     }
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('income_categories')
-      .insert({ ...cat, user_id: userData.user.id });
+      .insert({ ...cat, user_id: user.id })
+      .select()
+      .single();
     if (error) {
       set({ error: error.message, loading: false });
       throw error;
     }
-    await get().fetchIncomeCategories();
+    set((state) => ({ incomeCategories: [...state.incomeCategories, data as IncomeCategory], loading: false }));
   },
 
   updateIncomeCategory: async (id, updates) => {
@@ -84,7 +91,10 @@ export const useIncomeCategoryStore = create<IncomeCategoryState>((set, get) => 
       set({ error: error.message, loading: false });
       throw error;
     }
-    await get().fetchIncomeCategories();
+    set((state) => ({
+      incomeCategories: state.incomeCategories.map((c) => c.id === id ? { ...c, ...updates } : c),
+      loading: false,
+    }));
   },
 
   deleteIncomeCategory: async (id) => {

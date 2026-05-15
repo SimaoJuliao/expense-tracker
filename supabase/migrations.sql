@@ -109,6 +109,38 @@ CREATE POLICY "Users can delete own income categories" ON public.income_categori
 
 CREATE INDEX IF NOT EXISTS income_categories_user_id_idx ON public.income_categories(user_id);
 
+-- ---- ACCOUNT SETTINGS ----
+
+CREATE TABLE IF NOT EXISTS public.account_settings (
+  user_id      uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  account_type text NOT NULL DEFAULT 'personal' CHECK (account_type IN ('personal', 'group')),
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.account_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can manage own account settings" ON public.account_settings;
+
+CREATE POLICY "Users can manage own account settings" ON public.account_settings FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ---- GROUP MEMBERS ----
+
+CREATE TABLE IF NOT EXISTS public.group_members (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name       text NOT NULL,
+  position   integer NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can manage own group members" ON public.group_members;
+
+CREATE POLICY "Users can manage own group members" ON public.group_members FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS group_members_user_id_idx ON public.group_members(user_id);
+
 -- ---- INCOMES ----
 
 CREATE TABLE IF NOT EXISTS public.incomes (
@@ -168,38 +200,6 @@ CREATE POLICY "Users can delete own recurring incomes" ON public.recurring_incom
 
 CREATE INDEX IF NOT EXISTS recurring_incomes_user_id_idx    ON public.recurring_incomes(user_id);
 CREATE INDEX IF NOT EXISTS recurring_incomes_user_active_idx ON public.recurring_incomes(user_id, active);
-
--- ---- ACCOUNT SETTINGS ----
-
-CREATE TABLE IF NOT EXISTS public.account_settings (
-  user_id      uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  account_type text NOT NULL DEFAULT 'personal' CHECK (account_type IN ('personal', 'group')),
-  created_at   timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.account_settings ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can manage own account settings" ON public.account_settings;
-
-CREATE POLICY "Users can manage own account settings" ON public.account_settings FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
--- ---- GROUP MEMBERS ----
-
-CREATE TABLE IF NOT EXISTS public.group_members (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  name       text NOT NULL,
-  position   integer NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can manage own group members" ON public.group_members;
-
-CREATE POLICY "Users can manage own group members" ON public.group_members FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
-CREATE INDEX IF NOT EXISTS group_members_user_id_idx ON public.group_members(user_id);
 
 -- ---- CATEGORY SPLITS ----
 

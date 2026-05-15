@@ -81,7 +81,8 @@ CREATE POLICY "Users can insert own recurring expenses" ON public.recurring_expe
 CREATE POLICY "Users can update own recurring expenses" ON public.recurring_expenses FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own recurring expenses" ON public.recurring_expenses FOR DELETE USING (auth.uid() = user_id);
 
-CREATE INDEX IF NOT EXISTS recurring_expenses_user_id_idx ON public.recurring_expenses(user_id);
+CREATE INDEX IF NOT EXISTS recurring_expenses_user_id_idx    ON public.recurring_expenses(user_id);
+CREATE INDEX IF NOT EXISTS recurring_expenses_user_active_idx ON public.recurring_expenses(user_id, active);
 
 -- ---- INCOME CATEGORIES ----
 
@@ -136,8 +137,9 @@ CREATE POLICY "Users can insert own incomes" ON public.incomes FOR INSERT WITH C
 CREATE POLICY "Users can update own incomes" ON public.incomes FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own incomes" ON public.incomes FOR DELETE USING (auth.uid() = user_id);
 
-CREATE INDEX IF NOT EXISTS incomes_user_id_date_idx ON public.incomes(user_id, date DESC);
-CREATE INDEX IF NOT EXISTS incomes_category_id_idx  ON public.incomes(income_category_id);
+CREATE INDEX IF NOT EXISTS incomes_user_id_date_idx  ON public.incomes(user_id, date DESC);
+CREATE INDEX IF NOT EXISTS incomes_category_id_idx   ON public.incomes(income_category_id);
+CREATE INDEX IF NOT EXISTS incomes_category_user_idx ON public.incomes(income_category_id, user_id);
 
 -- ---- RECURRING INCOMES ----
 
@@ -164,7 +166,8 @@ CREATE POLICY "Users can insert own recurring incomes" ON public.recurring_incom
 CREATE POLICY "Users can update own recurring incomes" ON public.recurring_incomes FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own recurring incomes" ON public.recurring_incomes FOR DELETE USING (auth.uid() = user_id);
 
-CREATE INDEX IF NOT EXISTS recurring_incomes_user_id_idx ON public.recurring_incomes(user_id);
+CREATE INDEX IF NOT EXISTS recurring_incomes_user_id_idx    ON public.recurring_incomes(user_id);
+CREATE INDEX IF NOT EXISTS recurring_incomes_user_active_idx ON public.recurring_incomes(user_id, active);
 
 -- ---- ACCOUNT SETTINGS ----
 

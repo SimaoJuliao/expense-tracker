@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import * as incomeCategoryService from '../services/incomeCategoryService';
+import * as incomeService from '../services/incomeService';
 import { useAuthStore } from './useAuthStore';
 import type { IncomeCategory, NewIncomeCategory } from '../types';
 
@@ -34,15 +35,12 @@ export const useIncomeCategoryStore = create<IncomeCategoryState>((set, get) => 
 
   fetchIncomeCategories: async () => {
     set({ loading: true, error: null });
-    const { data, error } = await supabase
-      .from('income_categories')
-      .select('*')
-      .order('created_at', { ascending: true });
-    if (error) {
-      set({ error: error.message, loading: false });
-      return;
+    try {
+      const data = await incomeCategoryService.fetchIncomeCategories();
+      set({ incomeCategories: data, loading: false });
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
     }
-    set({ incomeCategories: data ?? [], loading: false });
   },
 
   seedDefaultIncomeCategories: async () => {
@@ -53,16 +51,16 @@ export const useIncomeCategoryStore = create<IncomeCategoryState>((set, get) => 
     if (seededUsers.has(userId)) return;
     seededUsers.add(userId);
 
-    const { data: existing } = await supabase.from('income_categories').select('id').limit(1);
-    if (existing && existing.length > 0) return;
-
-    const rows = DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, user_id: userId }));
-    const { error } = await supabase.from('income_categories').insert(rows);
-    if (error) {
+    try {
+      const hasAny = await incomeCategoryService.hasAnyIncomeCategory();
+      if (hasAny) return;
+      const rows = DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, user_id: userId }));
+      await incomeCategoryService.seedIncomeCategories(rows);
+      await get().fetchIncomeCategories();
+    } catch (err) {
+      console.error('seedDefaultIncomeCategories error:', err);
       seededUsers.delete(userId);
-      return;
     }
-    await get().fetchIncomeCategories();
   },
 
   addIncomeCategory: async (cat) => {
@@ -72,51 +70,44 @@ export const useIncomeCategoryStore = create<IncomeCategoryState>((set, get) => 
       set({ error: 'Not authenticated', loading: false });
       throw new Error('Not authenticated');
     }
-    const { data, error } = await supabase
-      .from('income_categories')
-      .insert({ ...cat, user_id: user.id })
-      .select()
-      .single();
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
+    try {
+      const data = await incomeCategoryService.insertIncomeCategory({ ...cat, user_id: user.id });
+      set((state) => ({ incomeCategories: [...state.incomeCategories, data], loading: false }));
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    set((state) => ({ incomeCategories: [...state.incomeCategories, data as IncomeCategory], loading: false }));
   },
 
   updateIncomeCategory: async (id, updates) => {
     set({ loading: true, error: null });
-    const { error } = await supabase.from('income_categories').update(updates).eq('id', id);
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
+    try {
+      await incomeCategoryService.updateIncomeCategory(id, updates);
+      set((state) => ({
+        incomeCategories: state.incomeCategories.map((c) => c.id === id ? { ...c, ...updates } : c),
+        loading: false,
+      }));
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    set((state) => ({
-      incomeCategories: state.incomeCategories.map((c) => c.id === id ? { ...c, ...updates } : c),
-      loading: false,
-    }));
   },
 
   deleteIncomeCategory: async (id) => {
     set({ loading: true, error: null });
-    const { error } = await supabase.from('income_categories').delete().eq('id', id);
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
+    try {
+      await incomeCategoryService.deleteIncomeCategory(id);
+      set((state) => ({
+        incomeCategories: state.incomeCategories.filter((c) => c.id !== id),
+        loading: false,
+      }));
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    set((state) => ({
-      incomeCategories: state.incomeCategories.filter((c) => c.id !== id),
-      loading: false,
-    }));
   },
 
-  getIncomeCountForCategory: async (id) => {
-    const { count } = await supabase
-      .from('incomes')
-      .select('id', { count: 'exact', head: true })
-      .eq('income_category_id', id);
-    return count ?? 0;
-  },
+  getIncomeCountForCategory: (id) => incomeService.countIncomesForCategory(id),
 
   clearError: () => set({ error: null }),
 }));

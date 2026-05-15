@@ -4,7 +4,7 @@ import { useCategoryStore } from '../../store/useCategoryStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from '../../i18n';
 import { getCurrentMonthYear, getDaysInMonth } from '../../utils';
-import { supabase } from '../../lib/supabase';
+import { fetchGroupSummaryData } from '../../services/groupService';
 import type { Expense, Income } from '../../types';
 
 export interface CategoryRow {
@@ -38,13 +38,14 @@ export const useGroupSummaryPage = () => {
     const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
     const endDate   = `${y}-${String(m).padStart(2, '0')}-${String(getDaysInMonth(y, m)).padStart(2, '0')}`;
 
-    const [expensesRes, incomesRes] = await Promise.all([
-      supabase.from('expenses').select('*').eq('user_id', user?.id ?? '').gte('date', startDate).lte('date', endDate),
-      supabase.from('incomes').select('*').eq('user_id', user?.id ?? '').gte('date', startDate).lte('date', endDate),
-    ]);
+    const { expenses: expData, incomes: incData } = await fetchGroupSummaryData(
+      user?.id ?? '',
+      startDate,
+      endDate
+    );
 
-    setExpenses(expensesRes.data ?? []);
-    setIncomes(incomesRes.data ?? []);
+    setExpenses(expData);
+    setIncomes(incData);
     setDataLoading(false);
   }, []);
 

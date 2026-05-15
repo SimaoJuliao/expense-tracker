@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { supabase } from '../lib/supabase';
+import * as expenseService from '../services/expenseService';
 import { useAuthStore } from './useAuthStore';
 import type { Expense, ExpenseFilters, NewExpense } from '../types';
-import { getCurrentMonthYear, getDaysInMonth } from '../utils';
+import { getCurrentMonthYear } from '../utils';
 
 interface ExpenseState {
   expenses: Expense[];
@@ -26,122 +26,80 @@ export const useExpenseStore = create<ExpenseState>()(
   persist(
     (set, get) => ({
       expenses: [],
-      filters: {
-        month,
-        year,
-        categoryId: null,
-        search: '',
-      },
+      filters: { month, year, categoryId: null, search: '' },
       loading: false,
       error: null,
 
       fetchExpenses: async () => {
         set({ loading: true, error: null });
-        const { filters } = get();
-        const startDate = filters.month === 0
-          ? `${filters.year}-01-01`
-          : `${filters.year}-${String(filters.month).padStart(2, '0')}-01`;
-        const endDate = filters.month === 0
-          ? `${filters.year}-12-31`
-          : `${filters.year}-${String(filters.month).padStart(2, '0')}-${String(getDaysInMonth(filters.year, filters.month)).padStart(2, '0')}`;
-
-        let query = supabase
-          .from('expenses')
-          .select('*, category:categories(*)')
-          .gte('date', startDate)
-          .lte('date', endDate)
-          .order('date', { ascending: false });
-
-        if (filters.categoryId) {
-          query = query.eq('category_id', filters.categoryId);
+        try {
+          const data = await expenseService.fetchExpenses(get().filters);
+          set({ expenses: data, loading: false });
+        } catch (err) {
+          set({ error: (err as { message: string }).message, loading: false });
         }
-
-        const { data, error } = await query;
-        if (error) {
-          set({ error: error.message, loading: false });
-          return;
-        }
-        set({ expenses: data ?? [], loading: false });
       },
 
       addExpense: async (expense) => {
         set({ loading: true, error: null });
         const user = useAuthStore.getState().user;
-        if (!user) {
-          set({ error: 'Not authenticated', loading: false });
-          return;
+        if (!user) { set({ error: 'Not authenticated', loading: false }); return; }
+        try {
+          const data = await expenseService.insertExpense({ ...expense, user_id: user.id });
+          set((state) => ({
+            expenses: [data, ...state.expenses].sort((a, b) => b.date.localeCompare(a.date)),
+            filters: { ...state.filters, categoryId: null, search: '' },
+            loading: false,
+          }));
+        } catch (err) {
+          set({ error: (err as { message: string }).message, loading: false });
+          throw err;
         }
-        const { data, error } = await supabase
-          .from('expenses')
-          .insert({ ...expense, user_id: user.id })
-          .select('*, category:categories(*)')
-          .single();
-        if (error) {
-          set({ error: error.message, loading: false });
-          throw error;
-        }
-        set((state) => ({
-          expenses: [data as Expense, ...state.expenses]
-            .sort((a, b) => b.date.localeCompare(a.date)),
-          filters: { ...state.filters, categoryId: null, search: '' },
-          loading: false,
-        }));
       },
 
       bulkAddExpenses: async (expenses) => {
         set({ loading: true, error: null });
-        const { data, error } = await supabase
-          .from('expenses')
-          .insert(expenses)
-          .select('*, category:categories(*)');
-        if (error) {
-          set({ error: error.message, loading: false });
-          throw error;
+        try {
+          const data = await expenseService.bulkInsertExpenses(expenses);
+          set((state) => ({
+            expenses: [...state.expenses, ...data].sort((a, b) => b.date.localeCompare(a.date)),
+            loading: false,
+          }));
+        } catch (err) {
+          set({ error: (err as { message: string }).message, loading: false });
+          throw err;
         }
-        set((state) => ({
-          expenses: [...state.expenses, ...(data as Expense[])]
-            .sort((a, b) => b.date.localeCompare(a.date)),
-          loading: false,
-        }));
       },
 
       updateExpense: async (id, updates) => {
         set({ loading: true, error: null });
-        const { data, error } = await supabase
-          .from('expenses')
-          .update(updates)
-          .eq('id', id)
-          .select('*, category:categories(*)')
-          .single();
-        if (error) {
-          set({ error: error.message, loading: false });
-          throw error;
+        try {
+          const data = await expenseService.updateExpense(id, updates);
+          set((state) => ({
+            expenses: state.expenses
+              .map((e) => e.id === id ? data : e)
+              .sort((a, b) => b.date.localeCompare(a.date)),
+            filters: { ...state.filters, categoryId: null, search: '' },
+            loading: false,
+          }));
+        } catch (err) {
+          set({ error: (err as { message: string }).message, loading: false });
+          throw err;
         }
-        set((state) => ({
-          expenses: state.expenses
-            .map((e) => e.id === id ? data as Expense : e)
-            .sort((a, b) => b.date.localeCompare(a.date)),
-          filters: { ...state.filters, categoryId: null, search: '' },
-          loading: false,
-        }));
       },
 
       deleteExpense: async (id) => {
         set({ loading: true, error: null });
-        const { error } = await supabase.from('expenses').delete().eq('id', id);
-        if (error) {
-          set({ error: error.message, loading: false });
-          throw error;
+        try {
+          await expenseService.deleteExpense(id);
+          set((state) => ({ expenses: state.expenses.filter((e) => e.id !== id), loading: false }));
+        } catch (err) {
+          set({ error: (err as { message: string }).message, loading: false });
+          throw err;
         }
-        set((state) => ({
-          expenses: state.expenses.filter((e) => e.id !== id),
-          loading: false,
-        }));
       },
 
-      setFilters: (newFilters) => {
-        set((state) => ({ filters: { ...state.filters, ...newFilters } }));
-      },
+      setFilters: (newFilters) => set((state) => ({ filters: { ...state.filters, ...newFilters } })),
 
       resetFilters: () => {
         const { month: m, year: y } = getCurrentMonthYear();

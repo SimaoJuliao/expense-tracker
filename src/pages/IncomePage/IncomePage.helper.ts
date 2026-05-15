@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 import { useIncomeStore } from '../../store/useIncomeStore';
 import { useIncomeCategoryStore } from '../../store/useIncomeCategoryStore';
 import { useRecurringIncomeStore } from '../../store/useRecurringIncomeStore';
-import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from '../../i18n';
 import { getMonthName, getDaysInMonth, exportToCSV } from '../../utils';
@@ -100,13 +99,12 @@ export const useIncomePage = () => {
           description:        r.description,
           amount:             r.amount,
           income_category_id: r.income_category_id,
+          member_id:          null,
           date: `${filters.year}-${String(filters.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
           user_id: user.id,
         };
       });
-      const { error } = await supabase.from('incomes').insert(rows);
-      if (error) throw error;
-      await fetchIncomes();
+      await useIncomeStore.getState().bulkAddIncomes(rows);
       toast.success(t('recurringIncome.applySuccess', { count: pendingRecurring.length }));
     } catch {
       toast.error(t('recurringIncome.applyFailed'));

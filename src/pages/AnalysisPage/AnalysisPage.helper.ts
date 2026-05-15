@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { fetchAnalysisData } from '../../services/analysisService';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useTranslation } from '../../i18n';
 import { getMonthName, getDaysInMonth } from '../../utils';
@@ -52,20 +52,17 @@ export const useAnalysisPage = () => {
         getDaysInMonth(now.getFullYear(), now.getMonth() + 1)
       ).padStart(2, '0')}`;
 
-      const [expResult, incResult] = await Promise.all([
-        supabase.from('expenses').select('date, amount').gte('date', startDate).lte('date', endDate),
-        supabase.from('incomes').select('date, amount').gte('date', startDate).lte('date', endDate),
-      ]);
+      const { expenses: expRows, incomes: incRows } = await fetchAnalysisData(startDate, endDate);
 
       const byMonthExp = new Map<string, number>();
-      for (const e of expResult.data ?? []) {
+      for (const e of expRows) {
         const [y, m] = e.date.split('-');
-        byMonthExp.set(`${y}-${m}`, (byMonthExp.get(`${y}-${m}`) ?? 0) + Number(e.amount));
+        byMonthExp.set(`${y}-${m}`, (byMonthExp.get(`${y}-${m}`) ?? 0) + e.amount);
       }
       const byMonthInc = new Map<string, number>();
-      for (const e of incResult.data ?? []) {
+      for (const e of incRows) {
         const [y, m] = e.date.split('-');
-        byMonthInc.set(`${y}-${m}`, (byMonthInc.get(`${y}-${m}`) ?? 0) + Number(e.amount));
+        byMonthInc.set(`${y}-${m}`, (byMonthInc.get(`${y}-${m}`) ?? 0) + e.amount);
       }
 
       const result: MonthlyData[] = [];
@@ -100,20 +97,17 @@ export const useAnalysisPage = () => {
       const currentYear = new Date().getFullYear();
       const startDate = `${currentYear - 9}-01-01`;
       const endDate   = `${currentYear}-12-31`;
-      const [expResult, incResult] = await Promise.all([
-        supabase.from('expenses').select('date, amount').gte('date', startDate).lte('date', endDate),
-        supabase.from('incomes').select('date, amount').gte('date', startDate).lte('date', endDate),
-      ]);
+      const { expenses: expRows, incomes: incRows } = await fetchAnalysisData(startDate, endDate);
 
       const byYearExp = new Map<number, number>();
-      for (const e of expResult.data ?? []) {
+      for (const e of expRows) {
         const y = Number(e.date.split('-')[0]);
-        byYearExp.set(y, (byYearExp.get(y) ?? 0) + Number(e.amount));
+        byYearExp.set(y, (byYearExp.get(y) ?? 0) + e.amount);
       }
       const byYearInc = new Map<number, number>();
-      for (const e of incResult.data ?? []) {
+      for (const e of incRows) {
         const y = Number(e.date.split('-')[0]);
-        byYearInc.set(y, (byYearInc.get(y) ?? 0) + Number(e.amount));
+        byYearInc.set(y, (byYearInc.get(y) ?? 0) + e.amount);
       }
 
       const allYears = Array.from(new Set([...byYearExp.keys(), ...byYearInc.keys()])).sort();

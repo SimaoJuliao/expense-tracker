@@ -1,21 +1,20 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import * as categoryService from '../services/categoryService';
+import * as expenseService from '../services/expenseService';
 import { useAuthStore } from './useAuthStore';
 import type { Category, NewCategory } from '../types';
 
-// Per-user deduplication: prevents re-seeding in the same session AND
-// prevents the stale-promise bug when a new user logs in after a previous one.
 const seededUsers = new Set<string>();
 
 const DEFAULT_CATEGORIES: NewCategory[] = [
   { name: 'Food & Drinks', icon: '🍔', color: '#f97316' },
-  { name: 'Transport', icon: '🚗', color: '#3b82f6' },
-  { name: 'Housing', icon: '🏠', color: '#8b5cf6' },
-  { name: 'Health', icon: '💊', color: '#10b981' },
+  { name: 'Transport',     icon: '🚗', color: '#3b82f6' },
+  { name: 'Housing',       icon: '🏠', color: '#8b5cf6' },
+  { name: 'Health',        icon: '💊', color: '#10b981' },
   { name: 'Entertainment', icon: '🎬', color: '#f59e0b' },
-  { name: 'Shopping', icon: '🛍️', color: '#ec4899' },
-  { name: 'Utilities', icon: '⚡', color: '#6366f1' },
-  { name: 'Other', icon: '📦', color: '#6b7280' },
+  { name: 'Shopping',      icon: '🛍️', color: '#ec4899' },
+  { name: 'Utilities',     icon: '⚡', color: '#6366f1' },
+  { name: 'Other',         icon: '📦', color: '#6b7280' },
 ];
 
 interface CategoryState {
@@ -38,16 +37,13 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
 
   fetchCategories: async () => {
     set({ loading: true, error: null });
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('created_at', { ascending: true });
-    if (error) {
-      console.error('fetchCategories error:', error);
-      set({ error: error.message, loading: false });
-      return;
+    try {
+      const data = await categoryService.fetchCategories();
+      set({ categories: data, loading: false });
+    } catch (err) {
+      console.error('fetchCategories error:', err);
+      set({ error: (err as { message: string }).message, loading: false });
     }
-    set({ categories: data ?? [], loading: false });
   },
 
   seedDefaultCategories: async () => {
@@ -55,21 +51,19 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     if (!user) return;
     const userId = user.id;
 
-    // Deduplicate per user — synchronous check+mark prevents concurrent double-seeding
     if (seededUsers.has(userId)) return;
     seededUsers.add(userId);
 
-    const { data: existing } = await supabase.from('categories').select('id').limit(1);
-    if (existing && existing.length > 0) return;
-
-    const rows = DEFAULT_CATEGORIES.map((c) => ({ ...c, user_id: userId }));
-    const { error } = await supabase.from('categories').insert(rows);
-    if (error) {
-      console.error('seedDefaultCategories insert error:', error);
-      seededUsers.delete(userId); // allow retry on transient failure
-      return;
+    try {
+      const hasAny = await categoryService.hasAnyCategory();
+      if (hasAny) return;
+      const rows = DEFAULT_CATEGORIES.map((c) => ({ ...c, user_id: userId }));
+      await categoryService.seedCategories(rows);
+      await get().fetchCategories();
+    } catch (err) {
+      console.error('seedDefaultCategories error:', err);
+      seededUsers.delete(userId);
     }
-    await get().fetchCategories();
   },
 
   addCategory: async (cat) => {
@@ -79,48 +73,41 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       set({ error: 'Not authenticated', loading: false });
       throw new Error('Not authenticated');
     }
-    const { data, error } = await supabase
-      .from('categories')
-      .insert({ ...cat, user_id: user.id })
-      .select()
-      .single();
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
+    try {
+      const data = await categoryService.insertCategory({ ...cat, user_id: user.id });
+      set((state) => ({ categories: [...state.categories, data], loading: false }));
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    set((state) => ({ categories: [...state.categories, data as Category], loading: false }));
   },
 
   updateCategory: async (id, updates) => {
     set({ loading: true, error: null });
-    const { error } = await supabase.from('categories').update(updates).eq('id', id);
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
+    try {
+      await categoryService.updateCategory(id, updates);
+      set((state) => ({
+        categories: state.categories.map((c) => c.id === id ? { ...c, ...updates } : c),
+        loading: false,
+      }));
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    set((state) => ({
-      categories: state.categories.map((c) => c.id === id ? { ...c, ...updates } : c),
-      loading: false,
-    }));
   },
 
   deleteCategory: async (id) => {
     set({ loading: true, error: null });
-    const { error } = await supabase.from('categories').delete().eq('id', id);
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
+    try {
+      await categoryService.deleteCategory(id);
+      set((state) => ({ categories: state.categories.filter((c) => c.id !== id), loading: false }));
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    set((state) => ({ categories: state.categories.filter((c) => c.id !== id), loading: false }));
   },
 
-  getExpenseCountForCategory: async (id) => {
-    const { count } = await supabase
-      .from('expenses')
-      .select('id', { count: 'exact', head: true })
-      .eq('category_id', id);
-    return count ?? 0;
-  },
+  getExpenseCountForCategory: (id) => expenseService.countExpensesForCategory(id),
 
   clearError: () => set({ error: null }),
 }));

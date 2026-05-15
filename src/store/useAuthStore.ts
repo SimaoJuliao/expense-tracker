@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import * as authService from '../services/authService';
 
 interface AuthState {
   user: User | null;
@@ -23,56 +23,55 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   initialize: async () => {
     set({ loading: true });
-    const { data } = await supabase.auth.getSession();
-    set({ session: data.session, user: data.session?.user ?? null, loading: false });
+    const session = await authService.getSession();
+    set({ session, user: session?.user ?? null, loading: false });
 
-    supabase.auth.onAuthStateChange((_event, session) => {
-      set({ session, user: session?.user ?? null });
+    authService.onAuthStateChange((newSession) => {
+      set({ session: newSession, user: newSession?.user ?? null });
     });
   },
 
   login: async (email, password) => {
     set({ loading: true, error: null });
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
+    try {
+      await authService.signIn(email, password);
+      set({ loading: false });
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    set({ loading: false });
   },
 
   register: async (email, password) => {
     set({ loading: true, error: null });
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
-    }
-    // When Supabase auto-confirms (email confirmation disabled), signUp returns a
-    // session immediately. Store it so callers can detect the auto-login.
-    if (data.session) {
-      set({ session: data.session, user: data.session.user, loading: false });
-    } else {
-      set({ loading: false });
+    try {
+      const session = await authService.signUp(email, password);
+      if (session) {
+        set({ session, user: session.user, loading: false });
+      } else {
+        set({ loading: false });
+      }
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
   },
 
   logout: async () => {
     set({ loading: true });
-    await supabase.auth.signOut();
+    await authService.signOut();
     set({ user: null, session: null, loading: false });
   },
 
   resetPassword: async (email) => {
     set({ loading: true, error: null });
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login`,
-    });
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
+    try {
+      await authService.resetPassword(email, `${window.location.origin}/login`);
+      set({ loading: false });
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    set({ loading: false });
   },
 
   clearError: () => set({ error: null }),

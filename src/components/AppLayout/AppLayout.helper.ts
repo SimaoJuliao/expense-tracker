@@ -32,6 +32,8 @@ export const useAppLayout = () => {
   const recurringInc     = useRecurringIncomeStore((s) => s.recurring);
   const fetchRecurringExp = useRecurringExpenseStore((s) => s.fetchRecurring);
   const fetchRecurringInc = useRecurringIncomeStore((s) => s.fetchRecurring);
+  const fetchExpenses    = useExpenseStore((s) => s.fetchExpenses);
+  const fetchIncomes     = useIncomeStore((s) => s.fetchIncomes);
 
   useEffect(() => {
     if (user) {
@@ -40,8 +42,10 @@ export const useAppLayout = () => {
       seedDefaultIncomeCategories();
       fetchRecurringExp();
       fetchRecurringInc();
+      fetchExpenses();
+      fetchIncomes();
     }
-  }, [user, fetchGroupData, seedDefaultCategories, seedDefaultIncomeCategories, fetchRecurringExp, fetchRecurringInc]);
+  }, [user, fetchGroupData, seedDefaultCategories, seedDefaultIncomeCategories, fetchRecurringExp, fetchRecurringInc, fetchExpenses, fetchIncomes]);
 
   const expMonthPrefix = expFilters.month === 0 ? null
     : `${expFilters.year}-${String(expFilters.month).padStart(2, '0')}`;

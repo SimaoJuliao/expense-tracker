@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import * as recurringIncomeService from '../services/recurringIncomeService';
 import { useAuthStore } from './useAuthStore';
 import type { RecurringIncome, NewRecurringIncome } from '../types';
 
@@ -22,85 +22,66 @@ export const useRecurringIncomeStore = create<RecurringIncomeState>()((set) => (
 
   fetchRecurring: async () => {
     set({ loading: true, error: null });
-    const { data, error } = await supabase
-      .from('recurring_incomes')
-      .select('*, income_category:income_categories(*)')
-      .order('day_of_month', { ascending: true });
-    if (error) {
-      set({ error: error.message, loading: false });
-      return;
+    try {
+      const data = await recurringIncomeService.fetchRecurringIncomes();
+      set({ recurring: data, loading: false });
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
     }
-    set({ recurring: data ?? [], loading: false });
   },
 
   addRecurring: async (data) => {
     set({ loading: true, error: null });
     const user = useAuthStore.getState().user;
-    if (!user) {
-      set({ error: 'Not authenticated', loading: false });
-      return;
+    if (!user) { set({ error: 'Not authenticated', loading: false }); return; }
+    try {
+      const row = await recurringIncomeService.insertRecurringIncome({ ...data, user_id: user.id });
+      set((state) => ({
+        recurring: [...state.recurring, row].sort((a, b) => a.day_of_month - b.day_of_month),
+        loading: false,
+      }));
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    const { data: row, error } = await supabase
-      .from('recurring_incomes')
-      .insert({ ...data, user_id: user.id })
-      .select('*, income_category:income_categories(*)')
-      .single();
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
-    }
-    set((state) => ({
-      recurring: [...state.recurring, row as RecurringIncome]
-        .sort((a, b) => a.day_of_month - b.day_of_month),
-      loading: false,
-    }));
   },
 
   updateRecurring: async (id, data) => {
     set({ loading: true, error: null });
-    const { data: row, error } = await supabase
-      .from('recurring_incomes')
-      .update(data)
-      .eq('id', id)
-      .select('*, income_category:income_categories(*)')
-      .single();
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
+    try {
+      const row = await recurringIncomeService.updateRecurringIncome(id, data);
+      set((state) => ({
+        recurring: state.recurring
+          .map((r) => r.id === id ? row : r)
+          .sort((a, b) => a.day_of_month - b.day_of_month),
+        loading: false,
+      }));
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    set((state) => ({
-      recurring: state.recurring
-        .map((r) => r.id === id ? row as RecurringIncome : r)
-        .sort((a, b) => a.day_of_month - b.day_of_month),
-      loading: false,
-    }));
   },
 
   deleteRecurring: async (id) => {
     set({ loading: true, error: null });
-    const { error } = await supabase
-      .from('recurring_incomes')
-      .delete()
-      .eq('id', id);
-    if (error) {
-      set({ error: error.message, loading: false });
-      throw error;
+    try {
+      await recurringIncomeService.deleteRecurringIncome(id);
+      set((state) => ({ recurring: state.recurring.filter((r) => r.id !== id), loading: false }));
+    } catch (err) {
+      set({ error: (err as { message: string }).message, loading: false });
+      throw err;
     }
-    set((state) => ({
-      recurring: state.recurring.filter((r) => r.id !== id),
-      loading: false,
-    }));
   },
 
   toggleActive: async (id, active) => {
-    const { error } = await supabase
-      .from('recurring_incomes')
-      .update({ active })
-      .eq('id', id);
-    if (error) throw error;
-    set((state) => ({
-      recurring: state.recurring.map((r) => (r.id === id ? { ...r, active } : r)),
-    }));
+    try {
+      await recurringIncomeService.toggleRecurringIncome(id, active);
+      set((state) => ({
+        recurring: state.recurring.map((r) => r.id === id ? { ...r, active } : r),
+      }));
+    } catch (err) {
+      throw err;
+    }
   },
 
   clearError: () => set({ error: null }),

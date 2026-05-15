@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useRecurringExpenseStore } from '../../store/useRecurringExpenseStore';
-import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from '../../i18n';
 import { getMonthName, getDaysInMonth, exportToCSV } from '../../utils';
@@ -101,9 +100,7 @@ export const useExpensesPage = () => {
           user_id: user.id,
         };
       });
-      const { error } = await supabase.from('expenses').insert(rows);
-      if (error) throw error;
-      await fetchExpenses();
+      await useExpenseStore.getState().bulkAddExpenses(rows);
       toast.success(t('recurring.applySuccess', { count: pendingRecurring.length }));
     } catch {
       toast.error(t('recurring.applyFailed'));

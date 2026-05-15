@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { useCategoriesPage, PRESET_COLORS } from './CategoriesPage.helper';
 import type { CategoryFormData } from './CategoriesPage.helper';
 import type { GroupMember } from '../../types';
+import { MEMBER_COLORS } from '../../constants/colors';
 
 const CategoryFormFields = ({
   data,
@@ -117,8 +118,6 @@ interface CategoryItem {
   user_id: string;
   created_at: string;
 }
-
-const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
 const CategoryCard = ({
   cat,

@@ -25,18 +25,36 @@ export const useIncomePage = () => {
 
   useEffect(() => { fetchIncomeCategories(); }, [fetchIncomeCategories]);
 
-  useEffect(() => { fetchIncomes(); }, [filters.month, filters.year, filters.categoryId, fetchIncomes]);
+  // Category exclusion is applied client-side, so we only refetch on month/year.
+  useEffect(() => { fetchIncomes(); }, [filters.month, filters.year, fetchIncomes]);
   useEffect(() => { fetchRecurring(); }, [fetchRecurring]);
 
   const filtered = useMemo(() => {
-    if (!filters.search) return incomes;
-    const q = filters.search.toLowerCase();
-    return incomes.filter(
-      (e) =>
-        e.description.toLowerCase().includes(q) ||
-        e.income_category?.name.toLowerCase().includes(q)
-    );
-  }, [incomes, filters.search]);
+    const excluded = new Set(filters.excludedCategoryIds);
+    let result = excluded.size > 0
+      ? incomes.filter((e) => !excluded.has(e.income_category_id))
+      : incomes;
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      result = result.filter(
+        (e) =>
+          e.description.toLowerCase().includes(q) ||
+          e.income_category?.name.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [incomes, filters.search, filters.excludedCategoryIds]);
+
+  const toggleCategoryFilter = (id: string) => {
+    const excluded = filters.excludedCategoryIds;
+    setFilters({
+      excludedCategoryIds: excluded.includes(id)
+        ? excluded.filter((x) => x !== id)
+        : [...excluded, id],
+    });
+  };
+  const showAllCategories = () => setFilters({ excludedCategoryIds: [] });
+  const hideAllCategories = () => setFilters({ excludedCategoryIds: incomeCategories.map((c) => c.id) });
 
   const total = useMemo(
     () => filtered.reduce((sum, e) => sum + Number(e.amount), 0),
@@ -116,6 +134,7 @@ export const useIncomePage = () => {
   return {
     filtered, loading, filters, setFilters,
     incomeCategories,
+    toggleCategoryFilter, showAllCategories, hideAllCategories,
     deleteId, setDeleteId, deleting,
     editIncome, setEditIncome,
     addModalOpen, setAddModalOpen,

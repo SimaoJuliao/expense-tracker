@@ -24,16 +24,34 @@ export const useExpensesPage = () => {
   const [applying, setApplying]       = useState(false);
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
-  useEffect(() => { fetchExpenses(); }, [filters.month, filters.year, filters.categoryId, fetchExpenses]);
+  // Category exclusion is applied client-side, so we only refetch on month/year.
+  useEffect(() => { fetchExpenses(); }, [filters.month, filters.year, fetchExpenses]);
   useEffect(() => { fetchRecurring();  }, [fetchRecurring]);
 
   const filtered = useMemo(() => {
-    if (!filters.search) return expenses;
-    const q = filters.search.toLowerCase();
-    return expenses.filter(
-      (e) => e.description.toLowerCase().includes(q) || e.category?.name.toLowerCase().includes(q)
-    );
-  }, [expenses, filters.search]);
+    const excluded = new Set(filters.excludedCategoryIds);
+    let result = excluded.size > 0
+      ? expenses.filter((e) => !excluded.has(e.category_id))
+      : expenses;
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      result = result.filter(
+        (e) => e.description.toLowerCase().includes(q) || e.category?.name.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [expenses, filters.search, filters.excludedCategoryIds]);
+
+  const toggleCategoryFilter = (id: string) => {
+    const excluded = filters.excludedCategoryIds;
+    setFilters({
+      excludedCategoryIds: excluded.includes(id)
+        ? excluded.filter((x) => x !== id)
+        : [...excluded, id],
+    });
+  };
+  const showAllCategories = () => setFilters({ excludedCategoryIds: [] });
+  const hideAllCategories = () => setFilters({ excludedCategoryIds: categories.map((c) => c.id) });
 
   const total = useMemo(
     () => filtered.reduce((sum, e) => sum + Number(e.amount), 0),
@@ -111,6 +129,7 @@ export const useExpensesPage = () => {
 
   return {
     filtered, loading, filters, setFilters, categories,
+    toggleCategoryFilter, showAllCategories, hideAllCategories,
     deleteId, setDeleteId, deleting,
     editExpense, setEditExpense,
     addModalOpen, setAddModalOpen,

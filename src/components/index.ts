@@ -1,4 +1,5 @@
 export { AppLayout } from './AppLayout';
+export { CategoryFilterDropdown } from './CategoryFilterDropdown';
 export { ConfirmDialog } from './ConfirmDialog';
 export { EmptyState } from './EmptyState';
 export { ExpenseForm } from './ExpenseForm';

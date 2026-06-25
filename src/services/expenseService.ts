@@ -10,15 +10,15 @@ export async function fetchExpenses(filters: ExpenseFilters): Promise<Expense[]>
     ? `${filters.year}-12-31`
     : `${filters.year}-${String(filters.month).padStart(2, '0')}-${String(getDaysInMonth(filters.year, filters.month)).padStart(2, '0')}`;
 
-  let query = supabase
+  const query = supabase
     .from('expenses')
     .select('*, category:categories(*)')
     .gte('date', startDate)
     .lte('date', endDate)
     .order('date', { ascending: false });
 
-  if (filters.categoryId) query = query.eq('category_id', filters.categoryId);
-
+  // Category exclusion is applied client-side (see ExpensesPage), so the query
+  // always returns the full month/year range.
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as Expense[];

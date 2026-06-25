@@ -26,7 +26,7 @@ export const useIncomeStore = create<IncomeState>()(
   persist(
     (set, get) => ({
       incomes: [],
-      filters: { month, year, categoryId: null, search: '' },
+      filters: { month, year, excludedCategoryIds: [], search: '' },
       loading: false,
       error: null,
 
@@ -48,7 +48,7 @@ export const useIncomeStore = create<IncomeState>()(
           const data = await incomeService.insertIncome({ ...income, user_id: user.id });
           set((state) => ({
             incomes: [data, ...state.incomes].sort((a, b) => b.date.localeCompare(a.date)),
-            filters: { ...state.filters, categoryId: null, search: '' },
+            filters: { ...state.filters, search: '' },
             loading: false,
           }));
         } catch (err) {
@@ -79,7 +79,7 @@ export const useIncomeStore = create<IncomeState>()(
             incomes: state.incomes
               .map((i) => i.id === id ? data : i)
               .sort((a, b) => b.date.localeCompare(a.date)),
-            filters: { ...state.filters, categoryId: null, search: '' },
+            filters: { ...state.filters, search: '' },
             loading: false,
           }));
         } catch (err) {
@@ -103,14 +103,29 @@ export const useIncomeStore = create<IncomeState>()(
 
       resetFilters: () => {
         const { month: m, year: y } = getCurrentMonthYear();
-        set({ filters: { month: m, year: y, categoryId: null, search: '' } });
+        set({ filters: { month: m, year: y, excludedCategoryIds: [], search: '' } });
       },
 
       clearError: () => set({ error: null }),
     }),
     {
       name: 'income-filters',
+      version: 1,
       partialize: (state) => ({ filters: state.filters }),
+      // v0 stored a single `categoryId`; drop it and start with no exclusions.
+      migrate: (persisted) => {
+        const old = (persisted as { filters?: Record<string, unknown> } | undefined)?.filters ?? {};
+        return {
+          filters: {
+            month: typeof old.month === 'number' ? old.month : month,
+            year: typeof old.year === 'number' ? old.year : year,
+            search: typeof old.search === 'string' ? old.search : '',
+            excludedCategoryIds: Array.isArray(old.excludedCategoryIds)
+              ? (old.excludedCategoryIds as string[])
+              : [],
+          },
+        };
+      },
     }
   )
 );

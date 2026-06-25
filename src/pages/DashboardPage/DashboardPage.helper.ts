@@ -25,9 +25,9 @@ export const useDashboardPage = () => {
     const init = async () => {
       const { month: m, year: y } = getCurrentMonthYear();
       const store = useExpenseStore.getState();
-      const alreadyLoaded = store.filters.month === m && store.filters.year === y && store.filters.categoryId === null;
+      const alreadyLoaded = store.filters.month === m && store.filters.year === y && store.filters.excludedCategoryIds.length === 0;
 
-      useExpenseStore.getState().setFilters({ month: m, year: y, categoryId: null, search: '' });
+      useExpenseStore.getState().setFilters({ month: m, year: y, excludedCategoryIds: [], search: '' });
 
       const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const endDate   = `${y}-${String(m).padStart(2, '0')}-${String(getDaysInMonth(y, m)).padStart(2, '0')}`;

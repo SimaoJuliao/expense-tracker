@@ -44,7 +44,7 @@ export interface CategorySplit {
 export interface ExpenseFilters {
   month: number;
   year: number;
-  categoryId: string | null;
+  excludedCategoryIds: string[];
   search: string;
 }
 
@@ -105,7 +105,7 @@ export interface Income {
 export interface IncomeFilters {
   month: number;
   year: number;
-  categoryId: string | null;
+  excludedCategoryIds: string[];
   search: string;
 }
 

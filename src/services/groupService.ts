@@ -12,6 +12,10 @@ export async function fetchGroupData(userId: string): Promise<{
     supabase.from('category_splits').select('*').eq('user_id', userId),
   ]);
 
+  if (settingsRes.error) throw settingsRes.error;
+  if (membersRes.error) throw membersRes.error;
+  if (splitsRes.error) throw splitsRes.error;
+
   return {
     accountType: (settingsRes.data as AccountSettings | null)?.account_type ?? 'personal',
     members: (membersRes.data as GroupMember[]) ?? [],
@@ -25,9 +29,20 @@ export async function setupGroupAccount(userId: string, memberNames: string[]): 
     .upsert({ user_id: userId, account_type: 'group' });
   if (settingsError) throw settingsError;
 
-  const memberRows = memberNames.map((name, i) => ({ user_id: userId, name, position: i }));
-  const { error: membersError } = await supabase.from('group_members').insert(memberRows);
-  if (membersError) throw membersError;
+  // Only insert members if none exist yet, so a retry (or a second browser
+  // context completing a pending setup) doesn't duplicate the member rows.
+  const { data: existing, error: existingError } = await supabase
+    .from('group_members')
+    .select('id')
+    .eq('user_id', userId)
+    .limit(1);
+  if (existingError) throw existingError;
+
+  if (!existing || existing.length === 0) {
+    const memberRows = memberNames.map((name, i) => ({ user_id: userId, name, position: i }));
+    const { error: membersError } = await supabase.from('group_members').insert(memberRows);
+    if (membersError) throw membersError;
+  }
 
   const { data, error: fetchError } = await supabase
     .from('group_members')

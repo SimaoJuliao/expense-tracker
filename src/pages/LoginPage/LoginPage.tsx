@@ -15,10 +15,11 @@ export const LoginPage = () => {
     handleSubmit,
     isGroupAccount, setIsGroupAccount,
     memberNames, setMemberName, addMember, removeMember,
+    groupSetupFailed,
     emailId, passwordId, confirmId, t,
   } = useLoginPage();
 
-  if (user) return <Navigate to="/" replace />;
+  if (user && !submitting && !groupSetupFailed) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden" id="main-content">

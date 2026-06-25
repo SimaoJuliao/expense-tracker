@@ -52,6 +52,7 @@ export const pt: Translations = {
     accountCreated: 'Conta criada! Pode agora iniciar sessão.',
     accountCreatedConfirmEmail: 'Conta criada! Verifique o seu email e clique no link de confirmação antes de iniciar sessão.',
     emailNotConfirmed: 'Por favor confirme o seu email primeiro — verifique a sua caixa de entrada.',
+    emailAlreadyRegistered: 'Esse email já está registado. Experimente iniciar sessão.',
     loggedOut: 'Sessão terminada com sucesso',
     forgotPassword: 'Esqueceu a palavra-passe?',
     forgotPasswordTitle: 'Recuperar palavra-passe',

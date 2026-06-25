@@ -3,6 +3,9 @@ import * as groupService from '../services/groupService';
 import { useAuthStore } from './useAuthStore';
 import type { GroupMember, CategorySplit } from '../types';
 
+let isFetchingGroupData = false;
+let isSettingUpGroup = false;
+
 interface GroupState {
   accountType: 'personal' | 'group' | null;
   members: GroupMember[];
@@ -25,21 +28,30 @@ export const useGroupStore = create<GroupState>((set, get) => ({
   fetchGroupData: async () => {
     const user = useAuthStore.getState().user;
     if (!user) return;
+    // A group setup is mid-flight (e.g. completing a pending registration);
+    // don't read and overwrite the soon-to-be 'group' state with a stale 'personal'.
+    if (isSettingUpGroup) return;
     if (get().loadedUserId === user.id) return;
+    if (isFetchingGroupData) return;
 
+    isFetchingGroupData = true;
     set({ loading: true });
     try {
       const { accountType, members, splits } = await groupService.fetchGroupData(user.id);
       set({ accountType, members, splits, loading: false, loadedUserId: user.id });
-    } catch {
+    } catch (err) {
+      console.error('fetchGroupData error:', err);
       set({ loading: false });
+    } finally {
+      isFetchingGroupData = false;
     }
   },
 
   setupGroupAccount: async (memberNames) => {
+    isSettingUpGroup = true;
     set({ loading: true });
     const user = useAuthStore.getState().user;
-    if (!user) { set({ loading: false }); throw new Error('Not authenticated'); }
+    if (!user) { isSettingUpGroup = false; set({ loading: false }); throw new Error('Not authenticated'); }
 
     try {
       const members = await groupService.setupGroupAccount(user.id, memberNames);
@@ -47,6 +59,8 @@ export const useGroupStore = create<GroupState>((set, get) => ({
     } catch (err) {
       set({ loading: false });
       throw err;
+    } finally {
+      isSettingUpGroup = false;
     }
   },
 

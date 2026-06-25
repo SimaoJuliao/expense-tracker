@@ -33,6 +33,11 @@ export async function hasAnyCategory(): Promise<boolean> {
 }
 
 export async function seedCategories(rows: (NewCategory & { user_id: string })[]): Promise<void> {
-  const { error } = await supabase.from('categories').insert(rows);
+  // Idempotent: relies on the UNIQUE (user_id, name) index so concurrent seeds
+  // from separate browser contexts (e.g. the email-confirmation tab + the login
+  // tab) can never create duplicates.
+  const { error } = await supabase
+    .from('categories')
+    .upsert(rows, { onConflict: 'user_id,name', ignoreDuplicates: true });
   if (error) throw error;
 }

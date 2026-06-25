@@ -56,6 +56,10 @@ CREATE INDEX IF NOT EXISTS expenses_user_id_date_idx ON public.expenses(user_id,
 CREATE INDEX IF NOT EXISTS expenses_category_id_idx  ON public.expenses(category_id);
 CREATE INDEX IF NOT EXISTS categories_user_id_idx    ON public.categories(user_id);
 
+-- Prevents duplicate default categories when seeding races across browser contexts.
+-- NOTE: if duplicates already exist this will fail — run the de-dup script first.
+CREATE UNIQUE INDEX IF NOT EXISTS categories_user_id_name_key ON public.categories(user_id, name);
+
 -- ---- RECURRING EXPENSES ----
 
 CREATE TABLE IF NOT EXISTS public.recurring_expenses (
@@ -108,6 +112,10 @@ CREATE POLICY "Users can update own income categories" ON public.income_categori
 CREATE POLICY "Users can delete own income categories" ON public.income_categories FOR DELETE USING (auth.uid() = user_id);
 
 CREATE INDEX IF NOT EXISTS income_categories_user_id_idx ON public.income_categories(user_id);
+
+-- Prevents duplicate default income categories when seeding races across browser contexts.
+-- NOTE: if duplicates already exist this will fail — run the de-dup script first.
+CREATE UNIQUE INDEX IF NOT EXISTS income_categories_user_id_name_key ON public.income_categories(user_id, name);
 
 -- ---- ACCOUNT SETTINGS ----
 

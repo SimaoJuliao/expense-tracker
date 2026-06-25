@@ -4,7 +4,8 @@ import * as incomeService from '../services/incomeService';
 import { useAuthStore } from './useAuthStore';
 import type { IncomeCategory, NewIncomeCategory } from '../types';
 
-const seededUsers = new Set<string>();
+const seedingPromises = new Map<string, Promise<void>>();
+let isFetchingIncomeCategories = false;
 
 const DEFAULT_INCOME_CATEGORIES: NewIncomeCategory[] = [
   { name: 'Salary',      icon: '💼', color: '#10b981' },
@@ -34,12 +35,16 @@ export const useIncomeCategoryStore = create<IncomeCategoryState>((set, get) => 
   error: null,
 
   fetchIncomeCategories: async () => {
-    set({ loading: true, error: null });
+    if (isFetchingIncomeCategories) return;
+    isFetchingIncomeCategories = true;
+    if (get().incomeCategories.length === 0) set({ loading: true, error: null });
     try {
       const data = await incomeCategoryService.fetchIncomeCategories();
       set({ incomeCategories: data, loading: false });
     } catch (err) {
       set({ error: (err as { message: string }).message, loading: false });
+    } finally {
+      isFetchingIncomeCategories = false;
     }
   },
 
@@ -48,19 +53,20 @@ export const useIncomeCategoryStore = create<IncomeCategoryState>((set, get) => 
     if (!user) return;
     const userId = user.id;
 
-    if (seededUsers.has(userId)) return;
-    seededUsers.add(userId);
-
-    try {
-      const hasAny = await incomeCategoryService.hasAnyIncomeCategory();
-      if (hasAny) return;
-      const rows = DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, user_id: userId }));
-      await incomeCategoryService.seedIncomeCategories(rows);
-      await get().fetchIncomeCategories();
-    } catch (err) {
-      console.error('seedDefaultIncomeCategories error:', err);
-      seededUsers.delete(userId);
+    if (!seedingPromises.has(userId)) {
+      seedingPromises.set(userId,
+        incomeCategoryService.hasAnyIncomeCategory().then((hasAny) => {
+          if (hasAny) return;
+          const rows = DEFAULT_INCOME_CATEGORIES.map((c) => ({ ...c, user_id: userId }));
+          return incomeCategoryService.seedIncomeCategories(rows);
+        }).catch((err) => {
+          console.error('seedDefaultIncomeCategories error:', err);
+          seedingPromises.delete(userId);
+        })
+      );
     }
+    await seedingPromises.get(userId);
+    await get().fetchIncomeCategories();
   },
 
   addIncomeCategory: async (cat) => {

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useExpenseStore } from '../../store/useExpenseStore';
-import { useCategoryStore } from '../../store/useCategoryStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useTranslation } from '../../i18n';
 import { getMonthName, getDaysInMonth, getCurrentMonthYear } from '../../utils';
@@ -9,7 +8,6 @@ import { CHART_COLORS } from '../../constants/colors';
 
 export const useDashboardPage = () => {
   const { expenses, loading: expLoading, filters, fetchExpenses } = useExpenseStore();
-  const { fetchCategories } = useCategoryStore();
   const { theme } = useThemeStore();
   const { t } = useTranslation();
 
@@ -36,14 +34,14 @@ export const useDashboardPage = () => {
 
       setIncomeLoading(true);
       const [, incomeTotal] = await Promise.all([
-        alreadyLoaded ? fetchCategories() : Promise.all([fetchCategories(), fetchExpenses()]),
+        alreadyLoaded ? Promise.resolve() : fetchExpenses(),
         fetchIncomeTotalForRange(startDate, endDate),
       ]);
       setTotalIncome(incomeTotal);
       setIncomeLoading(false);
     };
     init();
-  }, [fetchCategories, fetchExpenses]);
+  }, [fetchExpenses]);
 
   const totalSpent = useMemo(
     () => expenses.reduce((sum, e) => sum + Number(e.amount), 0),

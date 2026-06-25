@@ -25,6 +25,7 @@ export const useLoginPage = () => {
 
   const [isGroupAccount, setIsGroupAccount] = useState(false);
   const [memberNames, setMemberNames] = useState(['', '']);
+  const [groupSetupFailed, setGroupSetupFailed] = useState(false);
 
   const uid = useId();
 
@@ -36,6 +37,7 @@ export const useLoginPage = () => {
     setConfirmPassword('');
     setIsGroupAccount(false);
     setMemberNames(['', '']);
+    setGroupSetupFailed(false);
   };
 
   const addMember = () => {
@@ -81,9 +83,9 @@ export const useLoginPage = () => {
       if (mode === 'login') {
         await login(email, password);
         // Complete pending group setup stored during a registration that required email confirmation
-        const pendingRaw = sessionStorage.getItem(PENDING_GROUP_KEY);
+        const pendingRaw = localStorage.getItem(PENDING_GROUP_KEY);
         if (pendingRaw) {
-          sessionStorage.removeItem(PENDING_GROUP_KEY);
+          localStorage.removeItem(PENDING_GROUP_KEY);
           try {
             const pending = JSON.parse(pendingRaw) as { email: string; members: string[] };
             if (pending.email === email) {
@@ -92,8 +94,9 @@ export const useLoginPage = () => {
             } else {
               toast.success(t('auth.welcomeBack'));
             }
-          } catch {
-            toast.success(t('auth.welcomeBack'));
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : '';
+            toast.error(msg || t('common.error'));
           }
         } else {
           toast.success(t('auth.welcomeBack'));
@@ -106,11 +109,18 @@ export const useLoginPage = () => {
         const autoLoggedIn = !!useAuthStore.getState().user;
         if (isGroupAccount) {
           if (autoLoggedIn) {
-            await setupGroupAccount(memberNames.map((n) => n.trim()));
+            try {
+              await setupGroupAccount(memberNames.map((n) => n.trim()));
+            } catch (groupErr) {
+              const msg = groupErr instanceof Error ? groupErr.message : '';
+              toast.error(msg || t('common.error'));
+              setGroupSetupFailed(true);
+              return;
+            }
             toast.success(t('group.setupSuccess'));
             navigate('/');
           } else {
-            sessionStorage.setItem(PENDING_GROUP_KEY, JSON.stringify({
+            localStorage.setItem(PENDING_GROUP_KEY, JSON.stringify({
               email,
               members: memberNames.map((n) => n.trim()),
             }));
@@ -132,7 +142,10 @@ export const useLoginPage = () => {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
-      if (msg.toLowerCase().includes('email not confirmed') || msg.toLowerCase().includes('email_not_confirmed')) {
+      const lower = msg.toLowerCase();
+      if (lower.includes('user_already_registered') || lower.includes('already registered')) {
+        toast.error(t('auth.emailAlreadyRegistered'));
+      } else if (lower.includes('email not confirmed') || lower.includes('email_not_confirmed')) {
         toast.error(t('auth.emailNotConfirmed'));
       } else {
         toast.error(msg || t('common.error'));
@@ -154,6 +167,7 @@ export const useLoginPage = () => {
     handleSubmit,
     isGroupAccount, setIsGroupAccount,
     memberNames, setMemberName, addMember, removeMember,
+    groupSetupFailed,
     emailId: `${uid}-email`,
     passwordId: `${uid}-password`,
     confirmId: `${uid}-confirm`,

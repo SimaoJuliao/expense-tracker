@@ -1,6 +1,8 @@
 import { create } from 'zustand';
-import type { User, Session } from '@supabase/supabase-js';
+import type { User, Session, Subscription } from '@supabase/supabase-js';
 import * as authService from '../services/authService';
+
+let authSubscription: Subscription | null = null;
 
 interface AuthState {
   user: User | null;
@@ -22,11 +24,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   error: null,
 
   initialize: async () => {
+    if (authSubscription) return;
     set({ loading: true });
     const session = await authService.getSession();
     set({ session, user: session?.user ?? null, loading: false });
 
-    authService.onAuthStateChange((newSession) => {
+    authSubscription = authService.onAuthStateChange((newSession) => {
       set({ session: newSession, user: newSession?.user ?? null });
     });
   },
@@ -34,8 +37,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      await authService.signIn(email, password);
-      set({ loading: false });
+      const session = await authService.signIn(email, password);
+      if (session) {
+        set({ session, user: session.user, loading: false });
+      } else {
+        set({ loading: false });
+      }
     } catch (err) {
       set({ error: (err as { message: string }).message, loading: false });
       throw err;

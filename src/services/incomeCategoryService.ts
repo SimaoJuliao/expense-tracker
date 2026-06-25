@@ -33,6 +33,10 @@ export async function hasAnyIncomeCategory(): Promise<boolean> {
 }
 
 export async function seedIncomeCategories(rows: (NewIncomeCategory & { user_id: string })[]): Promise<void> {
-  const { error } = await supabase.from('income_categories').insert(rows);
+  // Idempotent: relies on the UNIQUE (user_id, name) index so concurrent seeds
+  // from separate browser contexts can never create duplicates.
+  const { error } = await supabase
+    .from('income_categories')
+    .upsert(rows, { onConflict: 'user_id,name', ignoreDuplicates: true });
   if (error) throw error;
 }

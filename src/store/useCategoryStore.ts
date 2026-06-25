@@ -4,7 +4,8 @@ import * as expenseService from '../services/expenseService';
 import { useAuthStore } from './useAuthStore';
 import type { Category, NewCategory } from '../types';
 
-const seededUsers = new Set<string>();
+const seedingPromises = new Map<string, Promise<void>>();
+let isFetchingCategories = false;
 
 const DEFAULT_CATEGORIES: NewCategory[] = [
   { name: 'Food & Drinks', icon: '🍔', color: '#f97316' },
@@ -36,13 +37,17 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   error: null,
 
   fetchCategories: async () => {
-    set({ loading: true, error: null });
+    if (isFetchingCategories) return;
+    isFetchingCategories = true;
+    if (get().categories.length === 0) set({ loading: true, error: null });
     try {
       const data = await categoryService.fetchCategories();
       set({ categories: data, loading: false });
     } catch (err) {
       console.error('fetchCategories error:', err);
       set({ error: (err as { message: string }).message, loading: false });
+    } finally {
+      isFetchingCategories = false;
     }
   },
 
@@ -51,19 +56,20 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     if (!user) return;
     const userId = user.id;
 
-    if (seededUsers.has(userId)) return;
-    seededUsers.add(userId);
-
-    try {
-      const hasAny = await categoryService.hasAnyCategory();
-      if (hasAny) return;
-      const rows = DEFAULT_CATEGORIES.map((c) => ({ ...c, user_id: userId }));
-      await categoryService.seedCategories(rows);
-      await get().fetchCategories();
-    } catch (err) {
-      console.error('seedDefaultCategories error:', err);
-      seededUsers.delete(userId);
+    if (!seedingPromises.has(userId)) {
+      seedingPromises.set(userId,
+        categoryService.hasAnyCategory().then((hasAny) => {
+          if (hasAny) return;
+          const rows = DEFAULT_CATEGORIES.map((c) => ({ ...c, user_id: userId }));
+          return categoryService.seedCategories(rows);
+        }).catch((err) => {
+          console.error('seedDefaultCategories error:', err);
+          seedingPromises.delete(userId);
+        })
+      );
     }
+    await seedingPromises.get(userId);
+    await get().fetchCategories();
   },
 
   addCategory: async (cat) => {

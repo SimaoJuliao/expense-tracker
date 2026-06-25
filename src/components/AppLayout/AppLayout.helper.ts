@@ -13,6 +13,8 @@ import { useRecurringExpenseStore } from '../../store/useRecurringExpenseStore';
 import { useRecurringIncomeStore } from '../../store/useRecurringIncomeStore';
 import { useTranslation } from '../../i18n';
 
+const PENDING_GROUP_KEY = '_pendingGroupSetup';
+
 export const useAppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const logout      = useAuthStore((s) => s.logout);
@@ -20,7 +22,7 @@ export const useAppLayout = () => {
   const navigate    = useNavigate();
   const { t }       = useTranslation();
   const { theme, toggleTheme } = useThemeStore();
-  const { accountType, fetchGroupData } = useGroupStore();
+  const { accountType, fetchGroupData, setupGroupAccount } = useGroupStore();
   const { seedDefaultCategories } = useCategoryStore();
   const { seedDefaultIncomeCategories } = useIncomeCategoryStore();
 
@@ -36,16 +38,38 @@ export const useAppLayout = () => {
   const fetchIncomes     = useIncomeStore((s) => s.fetchIncomes);
 
   useEffect(() => {
-    if (user) {
+    if (!user) return;
+
+    const pendingRaw = localStorage.getItem(PENDING_GROUP_KEY);
+    if (pendingRaw) {
+      try {
+        const pending = JSON.parse(pendingRaw) as { email: string; members: string[] };
+        localStorage.removeItem(PENDING_GROUP_KEY);
+        if (pending.email === user.email) {
+          setupGroupAccount(pending.members)
+            .then(() => toast.success(t('group.setupSuccess')))
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : '';
+              toast.error(msg || t('common.error'));
+            });
+        } else {
+          fetchGroupData();
+        }
+      } catch {
+        localStorage.removeItem(PENDING_GROUP_KEY);
+        fetchGroupData();
+      }
+    } else {
       fetchGroupData();
-      seedDefaultCategories();
-      seedDefaultIncomeCategories();
-      fetchRecurringExp();
-      fetchRecurringInc();
-      fetchExpenses();
-      fetchIncomes();
     }
-  }, [user, fetchGroupData, seedDefaultCategories, seedDefaultIncomeCategories, fetchRecurringExp, fetchRecurringInc, fetchExpenses, fetchIncomes]);
+
+    seedDefaultCategories();
+    seedDefaultIncomeCategories();
+    fetchRecurringExp();
+    fetchRecurringInc();
+    fetchExpenses();
+    fetchIncomes();
+  }, [user, fetchGroupData, setupGroupAccount, seedDefaultCategories, seedDefaultIncomeCategories, fetchRecurringExp, fetchRecurringInc, fetchExpenses, fetchIncomes]);
 
   const expMonthPrefix = expFilters.month === 0 ? null
     : `${expFilters.year}-${String(expFilters.month).padStart(2, '0')}`;

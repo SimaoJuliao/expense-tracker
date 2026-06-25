@@ -50,6 +50,7 @@ export const en = {
     accountCreated: 'Account created! You can now log in.',
     accountCreatedConfirmEmail: 'Account created! Check your email and click the confirmation link before signing in.',
     emailNotConfirmed: 'Please confirm your email first — check your inbox for the confirmation link.',
+    emailAlreadyRegistered: 'That email is already registered. Try signing in instead.',
     loggedOut: 'Logged out successfully',
     forgotPassword: 'Forgot password?',
     forgotPasswordTitle: 'Reset password',

@@ -41,25 +41,35 @@ export const useAppLayout = () => {
     if (!user) return;
 
     const pendingRaw = localStorage.getItem(PENDING_GROUP_KEY);
+    let pending: { email: string; members: string[] } | null = null;
     if (pendingRaw) {
-      try {
-        const pending = JSON.parse(pendingRaw) as { email: string; members: string[] };
-        localStorage.removeItem(PENDING_GROUP_KEY);
-        if (pending.email === user.email) {
-          setupGroupAccount(pending.members)
-            .then(() => toast.success(t('group.setupSuccess')))
-            .catch((err: unknown) => {
-              const msg = err instanceof Error ? err.message : '';
-              toast.error(msg || t('common.error'));
-            });
-        } else {
-          fetchGroupData();
-        }
-      } catch {
-        localStorage.removeItem(PENDING_GROUP_KEY);
-        fetchGroupData();
-      }
+      try { pending = JSON.parse(pendingRaw); }
+      catch { localStorage.removeItem(PENDING_GROUP_KEY); }
+    }
+
+    if (pending && pending.email.toLowerCase() === (user.email ?? '').toLowerCase()) {
+      // Complete the pending group setup. Remove the flag only AFTER it succeeds,
+      // so a second tab (the email-confirmation flow opens one) either runs the
+      // setup too or, finding the flag gone, reads the already-'group' account.
+      setupGroupAccount(pending.members)
+        .then(() => {
+          // StrictMode double-fires this effect onto the same setup promise;
+          // the flag is the dedup sentinel so the toast shows exactly once.
+          if (!localStorage.getItem(PENDING_GROUP_KEY)) return;
+          localStorage.removeItem(PENDING_GROUP_KEY);
+          toast.success(t('group.setupSuccess'));
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : '';
+          toast.error(msg || t('common.error'));
+        });
     } else {
+      // Only discard a pending setup that clearly belongs to a different account;
+      // if user.email isn't populated yet, keep it so a later load can retry
+      // instead of silently leaving the account as personal.
+      if (pending && user.email && pending.email.toLowerCase() !== user.email.toLowerCase()) {
+        localStorage.removeItem(PENDING_GROUP_KEY);
+      }
       fetchGroupData();
     }
 

@@ -84,21 +84,23 @@ export const useLoginPage = () => {
         await login(email, password);
         // Complete pending group setup stored during a registration that required email confirmation
         const pendingRaw = localStorage.getItem(PENDING_GROUP_KEY);
+        let pending: { email: string; members: string[] } | null = null;
         if (pendingRaw) {
-          localStorage.removeItem(PENDING_GROUP_KEY);
+          try { pending = JSON.parse(pendingRaw); }
+          catch { localStorage.removeItem(PENDING_GROUP_KEY); }
+        }
+        if (pending && pending.email.toLowerCase() === email.toLowerCase()) {
           try {
-            const pending = JSON.parse(pendingRaw) as { email: string; members: string[] };
-            if (pending.email === email) {
-              await setupGroupAccount(pending.members);
-              toast.success(t('group.setupSuccess'));
-            } else {
-              toast.success(t('auth.welcomeBack'));
-            }
+            await setupGroupAccount(pending.members);
+            localStorage.removeItem(PENDING_GROUP_KEY);
+            toast.success(t('group.setupSuccess'));
           } catch (err) {
+            // Leave the flag so AppLayout can retry the setup on load.
             const msg = err instanceof Error ? err.message : '';
             toast.error(msg || t('common.error'));
           }
         } else {
+          if (pending) localStorage.removeItem(PENDING_GROUP_KEY);
           toast.success(t('auth.welcomeBack'));
         }
         navigate('/');

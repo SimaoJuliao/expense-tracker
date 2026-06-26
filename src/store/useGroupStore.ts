@@ -5,6 +5,7 @@ import type { GroupMember, CategorySplit } from '../types';
 
 let isFetchingGroupData = false;
 let isSettingUpGroup = false;
+let setupInFlight: Promise<void> | null = null;
 
 interface GroupState {
   accountType: 'personal' | 'group' | null;
@@ -48,20 +49,28 @@ export const useGroupStore = create<GroupState>((set, get) => ({
   },
 
   setupGroupAccount: async (memberNames) => {
+    // Dedupe concurrent calls (StrictMode double-effect, or the AppLayout effect
+    // running twice) onto a single in-flight setup so callers awaiting it resolve
+    // only when the group is actually written.
+    if (setupInFlight) return setupInFlight;
+    const user = useAuthStore.getState().user;
+    if (!user) throw new Error('Not authenticated');
+
     isSettingUpGroup = true;
     set({ loading: true });
-    const user = useAuthStore.getState().user;
-    if (!user) { isSettingUpGroup = false; set({ loading: false }); throw new Error('Not authenticated'); }
-
-    try {
-      const members = await groupService.setupGroupAccount(user.id, memberNames);
-      set({ accountType: 'group', members, loading: false, loadedUserId: user.id });
-    } catch (err) {
-      set({ loading: false });
-      throw err;
-    } finally {
-      isSettingUpGroup = false;
-    }
+    setupInFlight = (async () => {
+      try {
+        const members = await groupService.setupGroupAccount(user.id, memberNames);
+        set({ accountType: 'group', members, loading: false, loadedUserId: user.id });
+      } catch (err) {
+        set({ loading: false });
+        throw err;
+      } finally {
+        isSettingUpGroup = false;
+        setupInFlight = null;
+      }
+    })();
+    return setupInFlight;
   },
 
   saveSplits: async (rows) => {

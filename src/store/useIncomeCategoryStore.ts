@@ -35,6 +35,10 @@ export const useIncomeCategoryStore = create<IncomeCategoryState>((set, get) => 
   error: null,
 
   fetchIncomeCategories: async () => {
+    // If a seed is in progress for this user, wait for it so we never read (and
+    // cache) the pre-seed empty table.
+    const uid = useAuthStore.getState().user?.id;
+    if (uid && seedingPromises.has(uid)) await seedingPromises.get(uid);
     if (isFetchingIncomeCategories) return;
     isFetchingIncomeCategories = true;
     if (get().incomeCategories.length === 0) set({ loading: true, error: null });

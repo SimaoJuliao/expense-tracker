@@ -149,6 +149,10 @@ CREATE POLICY "Users can manage own group members" ON public.group_members FOR A
 
 CREATE INDEX IF NOT EXISTS group_members_user_id_idx ON public.group_members(user_id);
 
+-- Prevents duplicate members when group setup runs from two browser contexts.
+-- NOTE: if duplicates already exist this will fail — run the de-dup script first.
+CREATE UNIQUE INDEX IF NOT EXISTS group_members_user_id_position_key ON public.group_members(user_id, position);
+
 -- ---- INCOMES ----
 
 CREATE TABLE IF NOT EXISTS public.incomes (

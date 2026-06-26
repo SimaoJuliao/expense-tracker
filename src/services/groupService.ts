@@ -41,7 +41,11 @@ export async function setupGroupAccount(userId: string, memberNames: string[]): 
   if (!existing || existing.length === 0) {
     const memberRows = memberNames.map((name, i) => ({ user_id: userId, name, position: i }));
     const { error: membersError } = await supabase.from('group_members').insert(memberRows);
-    if (membersError) throw membersError;
+    // 23505 = unique_violation: a concurrent context (e.g. the email-confirmation
+    // tab + the login tab) already created the members. The UNIQUE(user_id,
+    // position) index turns that into an ignorable conflict; without the index
+    // the plain insert just succeeds. Either way, don't fail the setup.
+    if (membersError && membersError.code !== '23505') throw membersError;
   }
 
   const { data, error: fetchError } = await supabase
@@ -74,6 +78,9 @@ export async function fetchGroupSummaryData(
     supabase.from('expenses').select('*').eq('user_id', userId).gte('date', startDate).lte('date', endDate),
     supabase.from('incomes').select('*').eq('user_id', userId).gte('date', startDate).lte('date', endDate),
   ]);
+
+  if (expensesRes.error) throw expensesRes.error;
+  if (incomesRes.error) throw incomesRes.error;
 
   return {
     expenses: (expensesRes.data as Expense[]) ?? [],

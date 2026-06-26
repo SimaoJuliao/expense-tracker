@@ -48,7 +48,11 @@ export const useIncomeStore = create<IncomeState>()(
           const data = await incomeService.insertIncome({ ...income, user_id: user.id });
           set((state) => ({
             incomes: [data, ...state.incomes].sort((a, b) => b.date.localeCompare(a.date)),
-            filters: { ...state.filters, search: '' },
+            filters: {
+              ...state.filters,
+              search: '',
+              excludedCategoryIds: state.filters.excludedCategoryIds.filter((id) => id !== data.income_category_id),
+            },
             loading: false,
           }));
         } catch (err) {
@@ -79,7 +83,11 @@ export const useIncomeStore = create<IncomeState>()(
             incomes: state.incomes
               .map((i) => i.id === id ? data : i)
               .sort((a, b) => b.date.localeCompare(a.date)),
-            filters: { ...state.filters, search: '' },
+            filters: {
+              ...state.filters,
+              search: '',
+              excludedCategoryIds: state.filters.excludedCategoryIds.filter((id) => id !== data.income_category_id),
+            },
             loading: false,
           }));
         } catch (err) {

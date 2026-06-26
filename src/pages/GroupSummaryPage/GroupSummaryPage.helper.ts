@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useGroupStore } from '../../store/useGroupStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -38,16 +39,23 @@ export const useGroupSummaryPage = () => {
     const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
     const endDate   = `${y}-${String(m).padStart(2, '0')}-${String(getDaysInMonth(y, m)).padStart(2, '0')}`;
 
-    const { expenses: expData, incomes: incData } = await fetchGroupSummaryData(
-      user?.id ?? '',
-      startDate,
-      endDate
-    );
-
-    setExpenses(expData);
-    setIncomes(incData);
-    setDataLoading(false);
-  }, []);
+    try {
+      const { expenses: expData, incomes: incData } = await fetchGroupSummaryData(
+        user?.id ?? '',
+        startDate,
+        endDate
+      );
+      setExpenses(expData);
+      setIncomes(incData);
+    } catch (err) {
+      console.error('fetchGroupSummaryData error:', err);
+      toast.error(t('common.error'));
+      setExpenses([]);
+      setIncomes([]);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [user?.id, t]);
 
   useEffect(() => {
     loadData(month, year);

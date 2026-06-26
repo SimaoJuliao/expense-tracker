@@ -53,8 +53,13 @@ export const CategoryFilterDropdown = ({
   }, [open]);
 
   const total = categories.length;
-  const selected = total - excludedIds.length;
-  const isFiltering = excludedIds.length > 0;
+  // Count only exclusions that still match an existing category, so a stale id
+  // (a since-deleted category left in the persisted set) doesn't show a false
+  // "filtering" state or an off-by-N / negative count.
+  const idSet = new Set(categories.map((c) => c.id));
+  const validExcluded = excludedIds.reduce((n, id) => (idSet.has(id) ? n + 1 : n), 0);
+  const selected = total - validExcluded;
+  const isFiltering = validExcluded > 0;
   const label = isFiltering
     ? t('expenses.categoryFilterSelected', { selected, total })
     : t('expenses.allCategories');

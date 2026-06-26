@@ -74,9 +74,32 @@ UPDATE public.recurring_incomes r
 
 DELETE FROM public.income_categories c USING inc_dupes d WHERE c.id = d.dupe_id;
 
+-- ---- 3. Group members: de-dup by (user_id, position) if the table exists ----
+-- (group tables don't exist in environments that never enabled the group
+-- feature, so this whole block is guarded.)
+DO $$
+BEGIN
+  IF to_regclass('public.group_members') IS NOT NULL THEN
+    CREATE TEMP TABLE gm_dupes ON COMMIT DROP AS
+    SELECT id AS dupe_id,
+           first_value(id) OVER (PARTITION BY user_id, position ORDER BY created_at, id) AS keep_id
+    FROM public.group_members;
+    DELETE FROM gm_dupes WHERE dupe_id = keep_id;
+
+    IF to_regclass('public.incomes') IS NOT NULL THEN
+      UPDATE public.incomes i SET member_id = d.keep_id FROM gm_dupes d WHERE i.member_id = d.dupe_id;
+    END IF;
+    IF to_regclass('public.category_splits') IS NOT NULL THEN
+      DELETE FROM public.category_splits s USING gm_dupes d WHERE s.member_id = d.dupe_id;
+    END IF;
+
+    DELETE FROM public.group_members g USING gm_dupes d WHERE g.id = d.dupe_id;
+  END IF;
+END $$;
+
 COMMIT;
 
--- ---- 3. Add the UNIQUE guards (now that duplicates are gone) ----
+-- ---- 4. Add the UNIQUE guards (now that duplicates are gone) ----
 CREATE UNIQUE INDEX IF NOT EXISTS categories_user_id_name_key        ON public.categories(user_id, name);
 CREATE UNIQUE INDEX IF NOT EXISTS income_categories_user_id_name_key ON public.income_categories(user_id, name);
 

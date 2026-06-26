@@ -37,6 +37,10 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   error: null,
 
   fetchCategories: async () => {
+    // If a seed is in progress for this user, wait for it so we never read (and
+    // cache) the pre-seed empty table.
+    const uid = useAuthStore.getState().user?.id;
+    if (uid && seedingPromises.has(uid)) await seedingPromises.get(uid);
     if (isFetchingCategories) return;
     isFetchingCategories = true;
     if (get().categories.length === 0) set({ loading: true, error: null });

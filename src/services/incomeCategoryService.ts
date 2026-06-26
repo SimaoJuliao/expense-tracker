@@ -33,10 +33,9 @@ export async function hasAnyIncomeCategory(): Promise<boolean> {
 }
 
 export async function seedIncomeCategories(rows: (NewIncomeCategory & { user_id: string })[]): Promise<void> {
-  // Idempotent: relies on the UNIQUE (user_id, name) index so concurrent seeds
-  // from separate browser contexts can never create duplicates.
-  const { error } = await supabase
-    .from('income_categories')
-    .upsert(rows, { onConflict: 'user_id,name', ignoreDuplicates: true });
-  if (error) throw error;
+  // Plain insert (guarded by hasAnyIncomeCategory) + ignore 23505 unique_violation,
+  // so a concurrent seed is deduped by the UNIQUE(user_id, name) index when
+  // present, and the call still works without it.
+  const { error } = await supabase.from('income_categories').insert(rows);
+  if (error && error.code !== '23505') throw error;
 }

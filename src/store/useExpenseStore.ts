@@ -48,7 +48,11 @@ export const useExpenseStore = create<ExpenseState>()(
           const data = await expenseService.insertExpense({ ...expense, user_id: user.id });
           set((state) => ({
             expenses: [data, ...state.expenses].sort((a, b) => b.date.localeCompare(a.date)),
-            filters: { ...state.filters, search: '' },
+            filters: {
+              ...state.filters,
+              search: '',
+              excludedCategoryIds: state.filters.excludedCategoryIds.filter((id) => id !== data.category_id),
+            },
             loading: false,
           }));
         } catch (err) {
@@ -79,7 +83,11 @@ export const useExpenseStore = create<ExpenseState>()(
             expenses: state.expenses
               .map((e) => e.id === id ? data : e)
               .sort((a, b) => b.date.localeCompare(a.date)),
-            filters: { ...state.filters, search: '' },
+            filters: {
+              ...state.filters,
+              search: '',
+              excludedCategoryIds: state.filters.excludedCategoryIds.filter((id) => id !== data.category_id),
+            },
             loading: false,
           }));
         } catch (err) {

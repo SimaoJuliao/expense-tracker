@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useRecurringExpenseStore } from '../../store/useRecurringExpenseStore';
-import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from '../../i18n';
 import { getMonthName, getDaysInMonth, exportToCSV } from '../../utils';
 import type { Expense } from '../../types';
@@ -24,16 +24,34 @@ export const useExpensesPage = () => {
   const [applying, setApplying]       = useState(false);
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
-  useEffect(() => { fetchExpenses();   }, [filters, fetchExpenses]);
+  // Category exclusion is applied client-side, so we only refetch on month/year.
+  useEffect(() => { fetchExpenses(); }, [filters.month, filters.year, fetchExpenses]);
   useEffect(() => { fetchRecurring();  }, [fetchRecurring]);
 
   const filtered = useMemo(() => {
-    if (!filters.search) return expenses;
-    const q = filters.search.toLowerCase();
-    return expenses.filter(
-      (e) => e.description.toLowerCase().includes(q) || e.category?.name.toLowerCase().includes(q)
-    );
-  }, [expenses, filters.search]);
+    const excluded = new Set(filters.excludedCategoryIds);
+    let result = excluded.size > 0
+      ? expenses.filter((e) => !excluded.has(e.category_id))
+      : expenses;
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      result = result.filter(
+        (e) => e.description.toLowerCase().includes(q) || e.category?.name.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [expenses, filters.search, filters.excludedCategoryIds]);
+
+  const toggleCategoryFilter = (id: string) => {
+    const excluded = filters.excludedCategoryIds;
+    setFilters({
+      excludedCategoryIds: excluded.includes(id)
+        ? excluded.filter((x) => x !== id)
+        : [...excluded, id],
+    });
+  };
+  const showAllCategories = () => setFilters({ excludedCategoryIds: [] });
+  const hideAllCategories = () => setFilters({ excludedCategoryIds: categories.map((c) => c.id) });
 
   const total = useMemo(
     () => filtered.reduce((sum, e) => sum + Number(e.amount), 0),
@@ -42,16 +60,15 @@ export const useExpensesPage = () => {
 
   const pendingRecurring = useMemo(() => {
     if (filters.month === 0) return [];
-    return recurring.filter((r) => {
-      if (!r.active) return false;
-      return !expenses.some(
-        (e) =>
-          e.description === r.description &&
-          e.category_id === r.category_id &&
-          Number(e.amount) === Number(r.amount) &&
-          e.date.startsWith(`${filters.year}-${String(filters.month).padStart(2, '0')}`)
-      );
-    });
+    const monthPrefix = `${filters.year}-${String(filters.month).padStart(2, '0')}`;
+    const applied = new Set(
+      expenses
+        .filter((e) => e.date.startsWith(monthPrefix))
+        .map((e) => `${e.description}|${e.category_id}|${Number(e.amount)}`)
+    );
+    return recurring.filter(
+      (r) => r.active && !applied.has(`${r.description}|${r.category_id}|${Number(r.amount)}`)
+    );
   }, [recurring, expenses, filters.month, filters.year]);
 
   const monthName = filters.month === 0 ? t('expenses.allMonths') : getMonthName(filters.month);
@@ -89,8 +106,8 @@ export const useExpensesPage = () => {
     if (pendingRecurring.length === 0) return;
     setApplying(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+      const user = useAuthStore.getState().user;
+      if (!user) return;
       const rows = pendingRecurring.map((r) => {
         const day = Math.min(r.day_of_month, getDaysInMonth(filters.year, filters.month));
         return {
@@ -98,12 +115,10 @@ export const useExpensesPage = () => {
           amount: r.amount,
           category_id: r.category_id,
           date: `${filters.year}-${String(filters.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-          user_id: userData.user!.id,
+          user_id: user.id,
         };
       });
-      const { error } = await supabase.from('expenses').insert(rows);
-      if (error) throw error;
-      await fetchExpenses();
+      await useExpenseStore.getState().bulkAddExpenses(rows);
       toast.success(t('recurring.applySuccess', { count: pendingRecurring.length }));
     } catch {
       toast.error(t('recurring.applyFailed'));
@@ -114,6 +129,7 @@ export const useExpensesPage = () => {
 
   return {
     filtered, loading, filters, setFilters, categories,
+    toggleCategoryFilter, showAllCategories, hideAllCategories,
     deleteId, setDeleteId, deleting,
     editExpense, setEditExpense,
     addModalOpen, setAddModalOpen,

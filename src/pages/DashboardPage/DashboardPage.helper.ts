@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useExpenseStore } from '../../store/useExpenseStore';
-import { useCategoryStore } from '../../store/useCategoryStore';
-import { useIncomeCategoryStore } from '../../store/useIncomeCategoryStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useTranslation } from '../../i18n';
-import { getMonthName, getDaysInMonth } from '../../utils';
-import { supabase } from '../../lib/supabase';
-
-const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1'];
+import { getMonthName, getDaysInMonth, getCurrentMonthYear } from '../../utils';
+import { fetchIncomeTotalForRange } from '../../services/incomeService';
+import { CHART_COLORS } from '../../constants/colors';
 
 export const useDashboardPage = () => {
-  const { expenses, loading: expLoading, filters, fetchExpenses, resetFilters } = useExpenseStore();
-  const { fetchCategories, seedDefaultCategories } = useCategoryStore();
-  const { fetchIncomeCategories, seedDefaultIncomeCategories } = useIncomeCategoryStore();
+  const { expenses, loading: expLoading, filters, fetchExpenses } = useExpenseStore();
   const { theme } = useThemeStore();
   const { t } = useTranslation();
 
@@ -28,34 +23,25 @@ export const useDashboardPage = () => {
 
   useEffect(() => {
     const init = async () => {
-      await fetchCategories();
-      await seedDefaultCategories();
-      await fetchIncomeCategories();
-      await seedDefaultIncomeCategories();
-      useExpenseStore.getState().resetFilters();
-      await fetchExpenses();
-    };
-    init();
-  }, [fetchCategories, seedDefaultCategories, fetchIncomeCategories, seedDefaultIncomeCategories, fetchExpenses, resetFilters]);
+      const { month: m, year: y } = getCurrentMonthYear();
+      const store = useExpenseStore.getState();
+      const alreadyLoaded = store.filters.month === m && store.filters.year === y && store.filters.excludedCategoryIds.length === 0;
 
-  useEffect(() => {
-    const fetchMonthIncome = async () => {
-      setIncomeLoading(true);
-      const now = new Date();
-      const m = now.getMonth() + 1;
-      const y = now.getFullYear();
+      useExpenseStore.getState().setFilters({ month: m, year: y, excludedCategoryIds: [], search: '' });
+
       const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const endDate   = `${y}-${String(m).padStart(2, '0')}-${String(getDaysInMonth(y, m)).padStart(2, '0')}`;
-      const { data } = await supabase
-        .from('incomes')
-        .select('amount')
-        .gte('date', startDate)
-        .lte('date', endDate);
-      setTotalIncome((data ?? []).reduce((sum, r) => sum + Number(r.amount), 0));
+
+      setIncomeLoading(true);
+      const [, incomeTotal] = await Promise.all([
+        alreadyLoaded ? Promise.resolve() : fetchExpenses(),
+        fetchIncomeTotalForRange(startDate, endDate),
+      ]);
+      setTotalIncome(incomeTotal);
       setIncomeLoading(false);
     };
-    fetchMonthIncome();
-  }, []);
+    init();
+  }, [fetchExpenses]);
 
   const totalSpent = useMemo(
     () => expenses.reduce((sum, e) => sum + Number(e.amount), 0),
@@ -82,7 +68,7 @@ export const useDashboardPage = () => {
       if (!cat) continue;
       const existing = map.get(cat.id);
       if (existing) { existing.total += Number(e.amount); }
-      else { map.set(cat.id, { name: cat.name, icon: cat.icon ?? '', color: cat.color ?? COLORS[map.size % COLORS.length], total: Number(e.amount) }); }
+      else { map.set(cat.id, { name: cat.name, icon: cat.icon ?? '', color: cat.color ?? CHART_COLORS[map.size % CHART_COLORS.length], total: Number(e.amount) }); }
     }
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [expenses]);

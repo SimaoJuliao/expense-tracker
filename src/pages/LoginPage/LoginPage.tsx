@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { Wallet, ArrowRight, ArrowLeft, MailCheck } from 'lucide-react';
+import { Wallet, ArrowRight, ArrowLeft, MailCheck, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,10 +12,14 @@ export const LoginPage = () => {
     email, setEmail, password, setPassword,
     confirmPassword, setConfirmPassword,
     errors, setErrors, submitting, resetSent,
-    handleSubmit, emailId, passwordId, confirmId, t,
+    handleSubmit,
+    isGroupAccount, setIsGroupAccount,
+    memberNames, setMemberName, addMember, removeMember,
+    groupSetupFailed,
+    emailId, passwordId, confirmId, t,
   } = useLoginPage();
 
-  if (user) return <Navigate to="/" replace />;
+  if (user && !submitting && !groupSetupFailed) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden" id="main-content">
@@ -198,30 +202,90 @@ export const LoginPage = () => {
                   </div>
 
                   {mode === 'register' && (
-                    <div className="space-y-1.5">
-                      <Label htmlFor={confirmId} className="text-[13px] font-medium">
-                        {t('auth.confirmPassword')}
-                        <span aria-hidden="true" className="text-destructive ml-0.5">{t('common.requiredMark')}</span>
-                      </Label>
-                      <Input
-                        id={confirmId}
-                        type="password"
-                        autoComplete="new-password"
-                        value={confirmPassword}
-                        onChange={(e) => { setConfirmPassword(e.target.value); if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: '' }); }}
-                        required
-                        aria-required="true"
-                        aria-describedby={errors.confirmPassword ? `${confirmId}-error` : undefined}
-                        aria-invalid={!!errors.confirmPassword}
-                        className={`h-10 text-sm ${errors.confirmPassword ? 'border-destructive' : ''}`}
-                        placeholder={t('auth.passwordPlaceholder')}
-                      />
-                      {errors.confirmPassword && (
-                        <p id={`${confirmId}-error`} role="alert" className="text-xs text-destructive">
-                          {errors.confirmPassword}
-                        </p>
-                      )}
-                    </div>
+                    <>
+                      <div className="space-y-1.5">
+                        <Label htmlFor={confirmId} className="text-[13px] font-medium">
+                          {t('auth.confirmPassword')}
+                          <span aria-hidden="true" className="text-destructive ml-0.5">{t('common.requiredMark')}</span>
+                        </Label>
+                        <Input
+                          id={confirmId}
+                          type="password"
+                          autoComplete="new-password"
+                          value={confirmPassword}
+                          onChange={(e) => { setConfirmPassword(e.target.value); if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: '' }); }}
+                          required
+                          aria-required="true"
+                          aria-describedby={errors.confirmPassword ? `${confirmId}-error` : undefined}
+                          aria-invalid={!!errors.confirmPassword}
+                          className={`h-10 text-sm ${errors.confirmPassword ? 'border-destructive' : ''}`}
+                          placeholder={t('auth.passwordPlaceholder')}
+                        />
+                        {errors.confirmPassword && (
+                          <p id={`${confirmId}-error`} role="alert" className="text-xs text-destructive">
+                            {errors.confirmPassword}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2 rounded-xl border border-border p-3">
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isGroupAccount}
+                            onChange={(e) => setIsGroupAccount(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 rounded accent-primary"
+                          />
+                          <div>
+                            <p className="text-[13px] font-medium leading-tight">{t('group.isGroupAccount')}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{t('group.isGroupAccountDesc')}</p>
+                          </div>
+                        </label>
+
+                        {isGroupAccount && (
+                          <div className="space-y-2 pt-1">
+                            {memberNames.map((name, i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                <Input
+                                  value={name}
+                                  onChange={(e) => setMemberName(i, e.target.value)}
+                                  placeholder={t('group.memberLabel', { n: String(i + 1) })}
+                                  className={`h-9 text-sm flex-1 ${errors[`member_${i}`] ? 'border-destructive' : ''}`}
+                                  aria-label={t('group.memberLabel', { n: String(i + 1) })}
+                                />
+                                {memberNames.length > 2 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeMember(i)}
+                                    className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                                    aria-label={t('group.removeMember')}
+                                  >
+                                    <X className="h-4 w-4" aria-hidden="true" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            {errors.members && (
+                              <p role="alert" className="text-xs text-destructive">{errors.members}</p>
+                            )}
+                            {memberNames.length < 4 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={addMember}
+                                className="w-full h-8 text-xs gap-1.5 mt-1"
+                              >
+                                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                                {t('group.addMember')}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
 
                   <Button

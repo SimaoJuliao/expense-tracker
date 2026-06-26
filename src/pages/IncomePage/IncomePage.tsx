@@ -1,6 +1,7 @@
-import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, RefreshCw, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatCurrency, formatDate, getMonthName } from '../../utils';
+import { formatDate, getMonthName } from '../../utils';
+import { useFormatCurrency } from '../../store/useCurrencyStore';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { EmptyState } from '../../components/EmptyState';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -17,18 +18,21 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { CategoryFilterDropdown } from '../../components/CategoryFilterDropdown';
 import { useIncomePage, YEARS, MONTHS } from './IncomePage.helper';
 
 export const IncomePage = () => {
+  const formatCurrency = useFormatCurrency();
   const {
     filtered, loading, filters, setFilters,
     incomeCategories,
+    toggleCategoryFilter, showAllCategories, hideAllCategories,
     deleteId, setDeleteId, deleting,
     editIncome, setEditIncome,
     addModalOpen, setAddModalOpen,
     applying, pendingRecurring,
     monthName, total,
-    handleDelete, handleApplyRecurring,
+    handleDelete, handleExport, handleApplyRecurring,
     t,
   } = useIncomePage();
 
@@ -48,6 +52,10 @@ export const IncomePage = () => {
               <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
               {t('recurringIncome.manageLink')}
             </Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
+            <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+            {t('settings.exportCsv')}
           </Button>
           <Button onClick={() => setAddModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
@@ -118,22 +126,14 @@ export const IncomePage = () => {
 
             <div className="space-y-1.5">
               <Label htmlFor="filter-category">{t('income.categoryFilterLabel')}</Label>
-              <Select
-                value={filters.categoryId ?? 'all'}
-                onValueChange={(v) => setFilters({ categoryId: v === 'all' ? null : v })}
-              >
-                <SelectTrigger id="filter-category">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('income.allCategories')}</SelectItem>
-                  {incomeCategories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.icon ? `${c.icon} ` : ''}{c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CategoryFilterDropdown
+                id="filter-category"
+                categories={incomeCategories}
+                excludedIds={filters.excludedCategoryIds}
+                onToggle={toggleCategoryFilter}
+                onShowAll={showAllCategories}
+                onHideAll={hideAllCategories}
+              />
             </div>
 
             <div className="space-y-1.5">
@@ -159,7 +159,7 @@ export const IncomePage = () => {
           icon="💰"
           title={t('income.noIncomeTitle')}
           message={
-            filters.search || filters.categoryId
+            filters.search || filters.excludedCategoryIds.length > 0
               ? t('income.noIncomeFiltered')
               : filters.month === 0
               ? t('income.noIncomeYear', { year: filters.year })

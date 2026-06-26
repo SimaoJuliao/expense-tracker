@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useIncomeCategoryStore } from '../../store/useIncomeCategoryStore';
+import { useGroupStore } from '../../store/useGroupStore';
 import { useTranslation } from '../../i18n';
 import type { Category, IncomeCategory, NewCategory, NewIncomeCategory } from '../../types';
 
@@ -27,9 +28,11 @@ export const useCategoriesPage = () => {
     incomeCategories, loading: incLoading,
     fetchIncomeCategories, addIncomeCategory, updateIncomeCategory, deleteIncomeCategory, getIncomeCountForCategory,
   } = useIncomeCategoryStore();
+  const { accountType, members, splits, saveSplits } = useGroupStore();
   const { t } = useTranslation();
 
   const loading = expLoading || incLoading;
+  const isGroupAccount = accountType === 'group';
 
   // ── Expense category state ───────────────────────────────────────────────────
   const [showAddModal,       setShowAddModal]       = useState(false);
@@ -54,6 +57,63 @@ export const useCategoriesPage = () => {
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
   useEffect(() => { fetchIncomeCategories(); }, [fetchIncomeCategories]);
 
+  // ── Splits state ─────────────────────────────────────────────────────────────
+  type SplitsMap = Record<string, Record<string, number>>;
+
+  const defaultSplits = useMemo<SplitsMap>(() => {
+    const map: SplitsMap = {};
+    const equalPct = members.length > 0 ? parseFloat((100 / members.length).toFixed(2)) : 0;
+    for (const cat of categories) {
+      map[cat.id] = {};
+      for (const m of members) {
+        const stored = splits.find((s) => s.category_id === cat.id && s.member_id === m.id);
+        map[cat.id][m.id] = stored ? stored.percentage : equalPct;
+      }
+    }
+    return map;
+  }, [categories, members, splits]);
+
+  const [localSplits, setLocalSplits] = useState<SplitsMap>({});
+  const [savingSplits, setSavingSplits] = useState(false);
+
+  useEffect(() => {
+    setLocalSplits(defaultSplits);
+  }, [defaultSplits]);
+
+  const setSplitValue = (categoryId: string, memberId: string, value: number) => {
+    setLocalSplits((prev) => ({
+      ...prev,
+      [categoryId]: { ...(prev[categoryId] ?? {}), [memberId]: value },
+    }));
+  };
+
+  const handleSaveSplits = async () => {
+    for (const cat of categories) {
+      const catSplits = localSplits[cat.id] ?? {};
+      const total = Object.values(catSplits).reduce((s, v) => s + v, 0);
+      if (Math.abs(total - 100) > 0.5) {
+        toast.error(t('group.splitsError'));
+        return;
+      }
+    }
+    setSavingSplits(true);
+    try {
+      const rows = categories.flatMap((cat) =>
+        members.map((m) => ({
+          category_id: cat.id,
+          member_id: m.id,
+          percentage: localSplits[cat.id]?.[m.id] ?? 0,
+        }))
+      );
+      await saveSplits(rows);
+      toast.success(t('group.splitsSuccess'));
+    } catch {
+      toast.error(t('group.splitsFailed'));
+    } finally {
+      setSavingSplits(false);
+    }
+  };
+
   // ── Expense category handlers ────────────────────────────────────────────────
   const validateForm = (data: CategoryFormData, setErrors: React.Dispatch<React.SetStateAction<Partial<Record<keyof CategoryFormData, string>>>>): boolean => {
     const e: Partial<Record<keyof CategoryFormData, string>> = {};
@@ -72,7 +132,11 @@ export const useCategoriesPage = () => {
       toast.success(t('categories.addSuccess'));
       setShowAddModal(false);
       setFormData(emptyForm);
-    } catch { toast.error(t('categories.addFailed')); }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      console.error('addCategory error:', err);
+      toast.error(msg || t('categories.addFailed'));
+    }
     finally { setSubmitting(false); }
   };
 
@@ -166,6 +230,8 @@ export const useCategoriesPage = () => {
   return {
     // shared
     loading, t,
+    // group splits
+    isGroupAccount, members, localSplits, setSplitValue, handleSaveSplits, savingSplits,
     // expense categories
     categories,
     showAddModal, setShowAddModal,

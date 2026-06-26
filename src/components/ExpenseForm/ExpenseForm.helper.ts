@@ -17,8 +17,8 @@ export interface ExpenseFormProps {
 
 export const useExpenseForm = ({ mode = 'expense', expense, recurringExpense, onSuccess, onCancel }: ExpenseFormProps) => {
   const navigate = useNavigate();
-  const addExpense    = useExpenseStore((s) => s.addExpense);
-  const updateExpense = useExpenseStore((s) => s.updateExpense);
+  const addExpense     = useExpenseStore((s) => s.addExpense);
+  const updateExpense  = useExpenseStore((s) => s.updateExpense);
   const expenseLoading = useExpenseStore((s) => s.loading);
   const { addRecurring, updateRecurring, loading: recurringLoading } = useRecurringExpenseStore();
   const categories = useCategoryStore((s) => s.categories);

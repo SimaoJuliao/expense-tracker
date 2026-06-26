@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Trash2, ChevronLeft } from 'lucide-react';
-import { formatCurrency } from '../../utils';
+import { useFormatCurrency } from '../../store/useCurrencyStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import { RecurringIncomeForm } from '../../components/RecurringIncomeForm';
 import { useRecurringIncomePage } from './RecurringIncomePage.helper';
 
 export const RecurringIncomePage = () => {
+  const formatCurrency = useFormatCurrency();
   const {
     recurring, loading,
     modalOpen, setModalOpen, editing,

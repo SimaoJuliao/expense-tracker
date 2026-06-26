@@ -1,19 +1,21 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuthStore } from './store/useAuthStore';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { ExpensesPage } from './pages/ExpensesPage';
-import { IncomePage } from './pages/IncomePage';
-import { RecurringIncomePage } from './pages/RecurringIncomePage';
-import { NewExpensePage } from './pages/NewExpensePage';
-import { RecurringExpensesPage } from './pages/RecurringExpensesPage';
-import { AnalysisPage } from './pages/AnalysisPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { CategoriesPage } from './pages/CategoriesPage';
+
+const LoginPage             = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const DashboardPage         = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const ExpensesPage          = lazy(() => import('./pages/ExpensesPage').then(m => ({ default: m.ExpensesPage })));
+const IncomePage            = lazy(() => import('./pages/IncomePage').then(m => ({ default: m.IncomePage })));
+const RecurringIncomePage   = lazy(() => import('./pages/RecurringIncomePage').then(m => ({ default: m.RecurringIncomePage })));
+const NewExpensePage        = lazy(() => import('./pages/NewExpensePage').then(m => ({ default: m.NewExpensePage })));
+const RecurringExpensesPage = lazy(() => import('./pages/RecurringExpensesPage').then(m => ({ default: m.RecurringExpensesPage })));
+const AnalysisPage          = lazy(() => import('./pages/AnalysisPage').then(m => ({ default: m.AnalysisPage })));
+const SettingsPage          = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const CategoriesPage        = lazy(() => import('./pages/CategoriesPage').then(m => ({ default: m.CategoriesPage })));
+const GroupSummaryPage      = lazy(() => import('./pages/GroupSummaryPage').then(m => ({ default: m.GroupSummaryPage })));
 
 const App = () => {
   const initialize = useAuthStore((s) => s.initialize);
@@ -31,6 +33,7 @@ const App = () => {
         Skip to main content
       </a>
 
+      <Suspense fallback={null}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route
@@ -46,12 +49,14 @@ const App = () => {
           <Route path="/income/recurring" element={<RecurringIncomePage />} />
           <Route path="/expenses/new" element={<NewExpensePage />} />
           <Route path="/expenses/recurring" element={<RecurringExpensesPage />} />
+          <Route path="/group/summary" element={<GroupSummaryPage />} />
           <Route path="/analysis" element={<AnalysisPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/categories" element={<CategoriesPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
 
       <Toaster richColors position="top-right" />
     </BrowserRouter>

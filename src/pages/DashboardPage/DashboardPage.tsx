@@ -4,14 +4,18 @@ import {
 } from 'recharts';
 import { Link } from 'react-router-dom';
 import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Percent, Tag, Plus } from 'lucide-react';
-import { formatCurrency, formatDate } from '../../utils';
+import { formatDate } from '../../utils';
+import { useFormatCurrency } from '../../store/useCurrencyStore';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { EmptyState } from '../../components/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useDashboardPage } from './DashboardPage.helper';
+import { CHART_COLORS } from '../../constants/colors';
+import { ChartErrorBoundary } from '../../components/ChartErrorBoundary';
 
 export const DashboardPage = () => {
+  const formatCurrency = useFormatCurrency();
   const {
     expenses, loading, filters,
     totalSpent, totalIncome, netBalance, isSurplus, savingsRate,
@@ -156,6 +160,7 @@ export const DashboardPage = () => {
             <CardContent>
               {byDay.length > 0 ? (
                 <>
+                  <ChartErrorBoundary>
                   <ResponsiveContainer width="100%" height={220} aria-hidden="true">
                     <BarChart data={byDay} barCategoryGap="30%">
                       <XAxis dataKey="date" tick={{ fontSize: 11, fill: chartText }} axisLine={{ stroke: chartGrid }} tickLine={false} />
@@ -169,6 +174,7 @@ export const DashboardPage = () => {
                       <Bar dataKey="total" fill={primaryColor} radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
+                  </ChartErrorBoundary>
                   <details className="mt-2">
                     <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">{t('dashboard.viewDataTable')}</summary>
                     <table className="mt-2 w-full text-xs" aria-label={t('dashboard.dailyDataLabel')}>
@@ -188,17 +194,19 @@ export const DashboardPage = () => {
             <CardContent>
               {byCategory.length > 0 ? (
                 <>
+                  <ChartErrorBoundary>
                   <ResponsiveContainer width="100%" height={220} aria-hidden="true">
                     <PieChart>
                       <Pie data={byCategory} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3}>
                         {byCategory.map((entry, index) => (
-                          <Cell key={entry.name} fill={entry.color || ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1'][index % 10]} />
+                          <Cell key={entry.name} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
                         ))}
                       </Pie>
                       <Legend formatter={(value) => <span className="text-xs">{value}</span>} />
                       <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     </PieChart>
                   </ResponsiveContainer>
+                  </ChartErrorBoundary>
                   <details className="mt-2">
                     <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">{t('dashboard.viewDataTable')}</summary>
                     <table className="mt-2 w-full text-xs" aria-label={t('dashboard.categoryDataLabel')}>

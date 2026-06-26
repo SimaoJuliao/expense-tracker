@@ -2,7 +2,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { formatCurrency } from '../../utils';
+import { useFormatCurrency } from '../../store/useCurrencyStore';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -11,8 +11,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useAnalysisPage } from './AnalysisPage.helper';
+import { ChartErrorBoundary } from '../../components/ChartErrorBoundary';
 
 export const AnalysisPage = () => {
+  const formatCurrency = useFormatCurrency();
   const {
     viewMode, setViewMode,
     monthCount, setMonthCount,
@@ -182,6 +184,7 @@ export const AnalysisPage = () => {
             <>
               {/* The chart is treated as decorative for screen readers; the same data is
                   provided below as a table (via <details>). */}
+              <ChartErrorBoundary>
               <ResponsiveContainer width="100%" height={280} aria-hidden="true">
                 <BarChart data={chartData} barCategoryGap="25%" barGap={2}>
                   <XAxis
@@ -220,6 +223,7 @@ export const AnalysisPage = () => {
                   <Bar dataKey="expenses" name="expenses" fill={expenseColor} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+              </ChartErrorBoundary>
               {/* SR-only data table */}
               <details className="mt-2">
                 <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">

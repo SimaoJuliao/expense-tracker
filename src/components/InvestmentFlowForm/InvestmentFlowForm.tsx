@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { AmountInput } from '../AmountInput';
 import type { InvestmentFlow, InvestmentFlowType } from '../../types';
 
 interface Props {
@@ -25,21 +26,20 @@ export const InvestmentFlowForm = ({ flow, defaultPlatformId, onSuccess, onCance
 
   const [platformId, setPlatformId] = useState(flow?.platform_id ?? defaultPlatformId ?? platforms[0]?.id ?? '');
   const [type, setType] = useState<InvestmentFlowType>(flow?.type ?? 'deposit');
-  const [amount, setAmount] = useState(flow ? String(flow.amount) : '');
+  const [amount, setAmount] = useState<number>(flow?.amount ?? 0);
   const [currency, setCurrency] = useState(flow?.currency ?? 'EUR');
   const [date, setDate] = useState(flow?.date ?? todayISO());
   const [note, setNote] = useState(flow?.note ?? '');
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
-    const amt = Number(amount);
-    if (!platformId || !(amt > 0) || !date) {
+    if (!platformId || !(amount > 0) || !date) {
       toast.error(t('investments.invalidForm'));
       return;
     }
     setSubmitting(true);
     try {
-      const payload = { platform_id: platformId, type, amount: amt, currency, date, note: note.trim() || null };
+      const payload = { platform_id: platformId, type, amount, currency, date, note: note.trim() || null };
       if (flow) await updateFlow(flow.id, payload);
       else await addFlow(payload);
       toast.success(t('investments.flowSaved'));
@@ -92,8 +92,7 @@ export const InvestmentFlowForm = ({ flow, defaultPlatformId, onSuccess, onCance
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="flow-amount">{t('investments.amountCol')}</Label>
-          <Input id="flow-amount" type="number" min="0" step="0.01" inputMode="decimal"
-            value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+          <AmountInput id="flow-amount" value={amount} onValueChange={setAmount} placeholder="0.00" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="flow-date">{t('investments.dateCol')}</Label>

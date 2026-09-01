@@ -1,3 +1,4 @@
+export { AmountInput } from './AmountInput';
 export { AppLayout } from './AppLayout';
 export { CategoryFilterDropdown } from './CategoryFilterDropdown';
 export { ConfirmDialog } from './ConfirmDialog';

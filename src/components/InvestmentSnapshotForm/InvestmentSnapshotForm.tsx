@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useInvestmentStore } from '../../store/useInvestmentStore';
 import { SUPPORTED_CURRENCIES } from '../../store/useCurrencyStore';
 import { useTranslation } from '../../i18n';
-import { todayISO } from '../../utils';
+import { todayISO, parseAmount, isAmountInput } from '../../utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,8 +29,8 @@ export const InvestmentSnapshotForm = ({ defaultPlatformId, defaultCurrency, onS
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
-    const val = Number(value);
-    if (!platformId || value === '' || !(val >= 0) || !date) {
+    const val = parseAmount(value);
+    if (!platformId || value.trim() === '' || !(val >= 0) || !date) {
       toast.error(t('investments.invalidForm'));
       return;
     }
@@ -80,8 +80,10 @@ export const InvestmentSnapshotForm = ({ defaultPlatformId, defaultCurrency, onS
 
       <div className="space-y-1.5">
         <Label htmlFor="snap-value">{t('investments.currentValueLabel')}</Label>
-        <Input id="snap-value" type="number" min="0" step="0.01" inputMode="decimal"
-          value={value} onChange={(e) => setValue(e.target.value)} placeholder="0.00" />
+        <Input id="snap-value" type="text" inputMode="decimal"
+          value={value}
+          onChange={(e) => { const n = e.target.value; if (isAmountInput(n)) setValue(n); }}
+          placeholder="0.00" />
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

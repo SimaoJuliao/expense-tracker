@@ -1,10 +1,14 @@
+export { AmountInput } from './AmountInput';
 export { AppLayout } from './AppLayout';
 export { CategoryFilterDropdown } from './CategoryFilterDropdown';
 export { ConfirmDialog } from './ConfirmDialog';
 export { EmptyState } from './EmptyState';
 export { ExpenseForm } from './ExpenseForm';
 export { IncomeForm } from './IncomeForm';
+export { InvestmentFlowForm } from './InvestmentFlowForm';
+export { InvestmentSnapshotForm } from './InvestmentSnapshotForm';
 export { LoadingSpinner } from './LoadingSpinner';
 export { RecurringIncomeForm } from './RecurringIncomeForm';
 export { Modal } from './Modal';
+export { PlatformAvatar } from './PlatformAvatar';
 export { ProtectedRoute } from './ProtectedRoute';

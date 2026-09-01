@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { LayoutDashboard, Receipt, Settings, FolderOpen, BarChart2, Wallet, Users } from 'lucide-react';
+import { LayoutDashboard, Receipt, Settings, FolderOpen, BarChart2, Wallet, Users, LineChart, ArrowRightLeft, Landmark } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useGroupStore } from '../../store/useGroupStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useIncomeCategoryStore } from '../../store/useIncomeCategoryStore';
+import { useInvestmentStore } from '../../store/useInvestmentStore';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useIncomeStore } from '../../store/useIncomeStore';
 import { useRecurringExpenseStore } from '../../store/useRecurringExpenseStore';
@@ -25,6 +26,7 @@ export const useAppLayout = () => {
   const { accountType, fetchGroupData, setupGroupAccount } = useGroupStore();
   const { seedDefaultCategories } = useCategoryStore();
   const { seedDefaultIncomeCategories } = useIncomeCategoryStore();
+  const { seedDefaultPlatforms } = useInvestmentStore();
 
   const expenses         = useExpenseStore((s) => s.expenses);
   const expFilters       = useExpenseStore((s) => s.filters);
@@ -75,11 +77,12 @@ export const useAppLayout = () => {
 
     seedDefaultCategories();
     seedDefaultIncomeCategories();
+    seedDefaultPlatforms();
     fetchRecurringExp();
     fetchRecurringInc();
     fetchExpenses();
     fetchIncomes();
-  }, [user, fetchGroupData, setupGroupAccount, seedDefaultCategories, seedDefaultIncomeCategories, fetchRecurringExp, fetchRecurringInc, fetchExpenses, fetchIncomes]);
+  }, [user, fetchGroupData, setupGroupAccount, seedDefaultCategories, seedDefaultIncomeCategories, seedDefaultPlatforms, fetchRecurringExp, fetchRecurringInc, fetchExpenses, fetchIncomes]);
 
   const expMonthPrefix = expFilters.month === 0 ? null
     : `${expFilters.year}-${String(expFilters.month).padStart(2, '0')}`;
@@ -110,17 +113,31 @@ export const useAppLayout = () => {
     ).length;
   }, [recurringInc, incomes, incMonthPrefix]);
 
-  const navItems = [
-    { to: '/',                    label: t('navigation.dashboard'), icon: LayoutDashboard },
-    { to: '/expenses',            label: t('navigation.expenses'),  icon: Receipt,  badge: pendingExpenses },
-    { to: '/income',              label: t('navigation.income'),    icon: Wallet,   badge: pendingIncomes  },
-    ...(accountType === 'group'
-      ? [{ to: '/group/summary', label: t('group.navLabel'), icon: Users }]
-      : []),
-    { to: '/analysis',            label: t('navigation.analysis'),  icon: BarChart2      },
-    { to: '/settings/categories', label: t('navigation.categories'),icon: FolderOpen     },
-    { to: '/settings',            label: t('navigation.settings'),  icon: Settings       },
+  const navSections = [
+    {
+      label: t('navigation.sectionFinances'),
+      items: [
+        { to: '/',                    label: t('navigation.dashboard'),  icon: LayoutDashboard },
+        { to: '/expenses',            label: t('navigation.expenses'),   icon: Receipt,  badge: pendingExpenses },
+        { to: '/income',              label: t('navigation.income'),     icon: Wallet,   badge: pendingIncomes  },
+        ...(accountType === 'group'
+          ? [{ to: '/group/summary',  label: t('group.navLabel'),        icon: Users }]
+          : []),
+        { to: '/analysis',            label: t('navigation.analysis'),   icon: BarChart2  },
+        { to: '/settings/categories', label: t('navigation.categories'), icon: FolderOpen },
+      ],
+    },
+    {
+      label: t('navigation.sectionInvestments'),
+      items: [
+        { to: '/investments',              label: t('navigation.investmentsOverview'), icon: LineChart },
+        { to: '/investments/transactions', label: t('investments.movements'),          icon: ArrowRightLeft },
+        { to: '/investments/platforms',    label: t('investments.platforms'),          icon: Landmark },
+      ],
+    },
   ];
+
+  const settingsNav = { to: '/settings', label: t('navigation.settings'), icon: Settings };
 
   const handleLogout = async () => {
     useGroupStore.getState().reset();
@@ -133,7 +150,8 @@ export const useAppLayout = () => {
 
   return {
     sidebarOpen, setSidebarOpen,
-    navItems,
+    navSections,
+    settingsNav,
     handleLogout,
     avatarLetter,
     theme, toggleTheme,

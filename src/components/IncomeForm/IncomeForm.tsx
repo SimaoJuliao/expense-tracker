@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { AmountInput } from '../AmountInput';
 import { useIncomeForm } from './IncomeForm.helper';
 import type { IncomeFormProps } from './IncomeForm.helper';
 
@@ -23,13 +24,10 @@ export const IncomeForm = (props: IncomeFormProps) => {
         <Label htmlFor={amountId}>
           {t('income.amountLabel')} <span aria-hidden="true" className="text-destructive">*</span>
         </Label>
-        <Input
+        <AmountInput
           id={amountId}
-          type="number"
-          step="0.01"
-          min="0"
-          value={form.amount || ''}
-          onChange={(e) => setForm((f) => ({ ...f, amount: parseFloat(e.target.value) || 0 }))}
+          value={form.amount}
+          onValueChange={(v) => setForm((f) => ({ ...f, amount: v }))}
           required
           aria-required="true"
           aria-describedby={errors.amount ? `${amountId}-error` : undefined}

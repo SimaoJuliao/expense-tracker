@@ -9,7 +9,7 @@ import { useAppLayout } from './AppLayout.helper';
 export const AppLayout = () => {
   const {
     sidebarOpen, setSidebarOpen,
-    navItems, handleLogout, avatarLetter, theme, toggleTheme, t, user,
+    navSections, settingsNav, handleLogout, avatarLetter, theme, toggleTheme, t, user,
   } = useAppLayout();
 
   return (
@@ -50,52 +50,83 @@ export const AppLayout = () => {
           </button>
         </div>
 
-        <div className="px-5 mb-1.5">
-          <span className="text-[10px] uppercase tracking-widest font-medium text-white/25">
-            Menu
-          </span>
+        <div className="flex-1 overflow-y-auto px-3 pt-1 space-y-5">
+          {navSections.map((section, si) => (
+            <div key={('label' in section && section.label) || `section-${si}`}>
+              {'label' in section && section.label && (
+                <div className="px-2 mb-1.5">
+                  <span className="text-[10px] uppercase tracking-widest font-medium text-white/25">
+                    {section.label}
+                  </span>
+                </div>
+              )}
+              <ul className="space-y-0.5" role="list">
+                {section.items.map((item) => (
+                  <li key={item.to}>
+                    <NavLink
+                      to={item.to}
+                      end
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-all duration-150',
+                          isActive
+                            ? 'bg-white/10 text-white'
+                            : 'text-white/50 hover:bg-white/6 hover:text-white/80'
+                        )
+                      }
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      {({ isActive }: { isActive: boolean }) => (
+                        <>
+                          <item.icon
+                            className={cn('h-[15px] w-[15px] shrink-0 transition-colors', isActive ? 'text-primary' : '')}
+                            aria-hidden="true"
+                          />
+                          {item.label}
+                          {isActive && <span className="sr-only">{t('common.currentPage')}</span>}
+                          {'badge' in item && (item.badge as number) > 0 && (
+                            <span
+                              className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center tabular-nums"
+                              aria-label={`${item.badge as number} pending`}
+                            >
+                              {(item.badge as number) > 9 ? '9+' : item.badge as number}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
-        <ul className="flex-1 px-3 space-y-0.5" role="list">
-          {navItems.map((item) => (
-            <li key={item.to}>
-              <NavLink
-                to={item.to}
-                end
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-all duration-150',
-                    isActive
-                      ? 'bg-white/10 text-white'
-                      : 'text-white/50 hover:bg-white/6 hover:text-white/80'
-                  )
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                {({ isActive }: { isActive: boolean }) => (
-                  <>
-                    <item.icon
-                      className={cn('h-[15px] w-[15px] shrink-0 transition-colors', isActive ? 'text-primary' : '')}
-                      aria-hidden="true"
-                    />
-                    {item.label}
-                    {isActive && <span className="sr-only">{t('common.currentPage')}</span>}
-                    {'badge' in item && (item.badge as number) > 0 && (
-                      <span
-                        className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center tabular-nums"
-                        aria-label={`${item.badge as number} pending`}
-                      >
-                        {(item.badge as number) > 9 ? '9+' : item.badge as number}
-                      </span>
-                    )}
-                  </>
-                )}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-
         <div className="px-3 pb-5 pt-2">
+          <NavLink
+            to={settingsNav.to}
+            end
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-all duration-150 mb-1',
+                isActive
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/50 hover:bg-white/6 hover:text-white/80'
+              )
+            }
+            onClick={() => setSidebarOpen(false)}
+          >
+            {({ isActive }: { isActive: boolean }) => (
+              <>
+                <settingsNav.icon
+                  className={cn('h-[15px] w-[15px] shrink-0 transition-colors', isActive ? 'text-primary' : '')}
+                  aria-hidden="true"
+                />
+                {settingsNav.label}
+                {isActive && <span className="sr-only">{t('common.currentPage')}</span>}
+              </>
+            )}
+          </NavLink>
           <div className="h-px bg-white/8 mx-2 mb-3" />
           <div className="flex items-center gap-2 px-3 py-1.5 mb-1">
             <div className="h-7 w-7 rounded-full bg-primary/80 flex items-center justify-center text-[11px] font-bold text-white shrink-0">

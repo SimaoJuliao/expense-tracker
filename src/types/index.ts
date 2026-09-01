@@ -142,3 +142,60 @@ export interface NewRecurringIncome {
   day_of_month: number;
   active: boolean;
 }
+
+// ---- Investments (Phase 1) ----
+
+export interface InvestmentPlatform {
+  id: string;
+  user_id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  created_at: string;
+}
+
+export interface NewInvestmentPlatform {
+  name: string;
+  icon: string | null;
+  color: string | null;
+}
+
+export type InvestmentFlowType = 'deposit' | 'withdrawal';
+
+export interface InvestmentFlow {
+  id: string;
+  user_id: string;
+  platform_id: string;
+  type: InvestmentFlowType;
+  amount: number;
+  currency: string;
+  date: string;
+  note: string | null;
+  created_at: string;
+}
+
+export interface NewInvestmentFlow {
+  platform_id: string;
+  type: InvestmentFlowType;
+  amount: number;
+  currency: string;
+  date: string;
+  note: string | null;
+}
+
+export interface InvestmentSnapshot {
+  id: string;
+  user_id: string;
+  platform_id: string;
+  currency: string;
+  value: number;
+  date: string;
+  created_at: string;
+}
+
+export interface NewInvestmentSnapshot {
+  platform_id: string;
+  currency: string;
+  value: number;
+  date: string;
+}

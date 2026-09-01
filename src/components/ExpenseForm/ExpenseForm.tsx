@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { AmountInput } from '../AmountInput';
 import { useExpenseForm } from './ExpenseForm.helper';
 import type { ExpenseFormProps } from './ExpenseForm.helper';
 
@@ -29,14 +30,11 @@ export const ExpenseForm = (props: ExpenseFormProps) => {
             {isRecurring ? t('recurring.amountLabel') : t('expenses.amountLabel')}{' '}
             <span aria-hidden="true" className="text-destructive">{t('common.requiredMark')}</span>
           </Label>
-          <Input
+          <AmountInput
             id={amountId}
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={form.amount || ''}
-            onChange={(e) => {
-              setForm((p) => ({ ...p, amount: parseFloat(e.target.value) || 0 }));
+            value={form.amount}
+            onValueChange={(v) => {
+              setForm((p) => ({ ...p, amount: v }));
               if (errors.amount) setErrors((p) => ({ ...p, amount: undefined }));
             }}
             required

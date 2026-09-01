@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { AmountInput } from '../AmountInput';
 import { useRecurringIncomeForm } from './RecurringIncomeForm.helper';
 import type { RecurringIncomeFormProps } from './RecurringIncomeForm.helper';
 
@@ -22,13 +23,10 @@ export const RecurringIncomeForm = (props: RecurringIncomeFormProps) => {
         <Label htmlFor={amountId}>
           {t('recurringIncome.amountLabel')} <span aria-hidden="true" className="text-destructive">*</span>
         </Label>
-        <Input
+        <AmountInput
           id={amountId}
-          type="number"
-          step="0.01"
-          min="0"
-          value={form.amount || ''}
-          onChange={(e) => setForm((f) => ({ ...f, amount: parseFloat(e.target.value) || 0 }))}
+          value={form.amount}
+          onValueChange={(v) => setForm((f) => ({ ...f, amount: v }))}
           required
           aria-required="true"
           aria-describedby={errors.amount ? `${amountId}-error` : undefined}

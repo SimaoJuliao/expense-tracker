@@ -24,6 +24,17 @@ export const getCurrentMonthYear = (): { month: number; year: number } => {
   return { month: now.getMonth() + 1, year: now.getFullYear() };
 };
 
+export const todayISO = (): string => new Date().toISOString().slice(0, 10);
+
+/** Parse a user-typed amount, accepting both ',' and '.' as the decimal separator. */
+export const parseAmount = (value: string): number => {
+  const n = Number(String(value).trim().replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+};
+
+/** True while a string is a valid (possibly partial) decimal amount being typed. */
+export const isAmountInput = (value: string): boolean => /^\d*[.,]?\d*$/.test(value);
+
 export const getMonthName = (month: number): string => {
   return new Date(2000, month - 1, 1).toLocaleString('en-GB', { month: 'long' });
 };

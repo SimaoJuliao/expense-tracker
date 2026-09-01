@@ -233,3 +233,88 @@ CREATE POLICY "Users can manage own category splits" ON public.category_splits F
 
 CREATE INDEX IF NOT EXISTS category_splits_user_id_idx     ON public.category_splits(user_id);
 CREATE INDEX IF NOT EXISTS category_splits_category_id_idx ON public.category_splits(category_id);
+
+-- ============================================================
+-- INVESTMENTS (Phase 1: per-platform, multi-currency cash flow)
+-- ============================================================
+
+-- ---- INVESTMENT PLATFORMS ----
+
+CREATE TABLE IF NOT EXISTS public.investment_platforms (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name       text NOT NULL,
+  icon       text,
+  color      text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.investment_platforms ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can select own investment platforms" ON public.investment_platforms;
+DROP POLICY IF EXISTS "Users can insert own investment platforms" ON public.investment_platforms;
+DROP POLICY IF EXISTS "Users can update own investment platforms" ON public.investment_platforms;
+DROP POLICY IF EXISTS "Users can delete own investment platforms" ON public.investment_platforms;
+
+CREATE POLICY "Users can select own investment platforms" ON public.investment_platforms FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own investment platforms" ON public.investment_platforms FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own investment platforms" ON public.investment_platforms FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own investment platforms" ON public.investment_platforms FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS investment_platforms_user_id_idx ON public.investment_platforms(user_id);
+
+-- ---- INVESTMENT FLOWS (deposits / withdrawals) ----
+
+CREATE TABLE IF NOT EXISTS public.investment_flows (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  platform_id uuid NOT NULL REFERENCES public.investment_platforms(id) ON DELETE CASCADE,
+  type        text NOT NULL CHECK (type IN ('deposit', 'withdrawal')),
+  amount      numeric(18, 2) NOT NULL CHECK (amount > 0),
+  currency    text NOT NULL DEFAULT 'EUR',
+  date        date NOT NULL,
+  note        text,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.investment_flows ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can select own investment flows" ON public.investment_flows;
+DROP POLICY IF EXISTS "Users can insert own investment flows" ON public.investment_flows;
+DROP POLICY IF EXISTS "Users can update own investment flows" ON public.investment_flows;
+DROP POLICY IF EXISTS "Users can delete own investment flows" ON public.investment_flows;
+
+CREATE POLICY "Users can select own investment flows" ON public.investment_flows FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own investment flows" ON public.investment_flows FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own investment flows" ON public.investment_flows FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own investment flows" ON public.investment_flows FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS investment_flows_user_id_date_idx ON public.investment_flows(user_id, date DESC);
+CREATE INDEX IF NOT EXISTS investment_flows_platform_id_idx  ON public.investment_flows(platform_id);
+
+-- ---- INVESTMENT SNAPSHOTS (manual current value per platform + currency) ----
+
+CREATE TABLE IF NOT EXISTS public.investment_snapshots (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  platform_id uuid NOT NULL REFERENCES public.investment_platforms(id) ON DELETE CASCADE,
+  currency    text NOT NULL DEFAULT 'EUR',
+  value       numeric(18, 2) NOT NULL CHECK (value >= 0),
+  date        date NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.investment_snapshots ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can select own investment snapshots" ON public.investment_snapshots;
+DROP POLICY IF EXISTS "Users can insert own investment snapshots" ON public.investment_snapshots;
+DROP POLICY IF EXISTS "Users can update own investment snapshots" ON public.investment_snapshots;
+DROP POLICY IF EXISTS "Users can delete own investment snapshots" ON public.investment_snapshots;
+
+CREATE POLICY "Users can select own investment snapshots" ON public.investment_snapshots FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own investment snapshots" ON public.investment_snapshots FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own investment snapshots" ON public.investment_snapshots FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own investment snapshots" ON public.investment_snapshots FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS investment_snapshots_platform_curr_idx ON public.investment_snapshots(platform_id, currency, date DESC);
+CREATE INDEX IF NOT EXISTS investment_snapshots_user_id_idx       ON public.investment_snapshots(user_id);

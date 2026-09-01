@@ -16,6 +16,9 @@ const AnalysisPage          = lazy(() => import('./pages/AnalysisPage').then(m =
 const SettingsPage          = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const CategoriesPage        = lazy(() => import('./pages/CategoriesPage').then(m => ({ default: m.CategoriesPage })));
 const GroupSummaryPage      = lazy(() => import('./pages/GroupSummaryPage').then(m => ({ default: m.GroupSummaryPage })));
+const InvestmentsPage       = lazy(() => import('./pages/InvestmentsPage').then(m => ({ default: m.InvestmentsPage })));
+const InvestmentTransactionsPage = lazy(() => import('./pages/InvestmentTransactionsPage').then(m => ({ default: m.InvestmentTransactionsPage })));
+const InvestmentPlatformsPage    = lazy(() => import('./pages/InvestmentPlatformsPage').then(m => ({ default: m.InvestmentPlatformsPage })));
 
 const App = () => {
   const initialize = useAuthStore((s) => s.initialize);
@@ -50,6 +53,9 @@ const App = () => {
           <Route path="/expenses/new" element={<NewExpensePage />} />
           <Route path="/expenses/recurring" element={<RecurringExpensesPage />} />
           <Route path="/group/summary" element={<GroupSummaryPage />} />
+          <Route path="/investments" element={<InvestmentsPage />} />
+          <Route path="/investments/transactions" element={<InvestmentTransactionsPage />} />
+          <Route path="/investments/platforms" element={<InvestmentPlatformsPage />} />
           <Route path="/analysis" element={<AnalysisPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/categories" element={<CategoriesPage />} />

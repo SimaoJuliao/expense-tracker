@@ -1,0 +1,1 @@
+export { InvestmentTransactionsPage } from './InvestmentTransactionsPage';

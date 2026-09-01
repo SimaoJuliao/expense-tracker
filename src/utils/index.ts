@@ -24,6 +24,8 @@ export const getCurrentMonthYear = (): { month: number; year: number } => {
   return { month: now.getMonth() + 1, year: now.getFullYear() };
 };
 
+export const todayISO = (): string => new Date().toISOString().slice(0, 10);
+
 export const getMonthName = (month: number): string => {
   return new Date(2000, month - 1, 1).toLocaleString('en-GB', { month: 'long' });
 };
